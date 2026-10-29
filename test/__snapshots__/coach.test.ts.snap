@@ -1,0 +1,445 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`tool registry > is the contract: names and schemas do not change by accident 1`] = `
+[
+  {
+    "name": "get_overview",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object",
+    },
+    "write": false,
+  },
+  {
+    "name": "get_activities",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "description": "YYYY-MM-DD",
+          "type": "string",
+        },
+        "limit": {
+          "maximum": 30,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "to": {
+          "description": "YYYY-MM-DD",
+          "type": "string",
+        },
+        "type": {
+          "enum": [
+            "run",
+            "bike",
+            "ski",
+            "strength",
+          ],
+          "type": "string",
+        },
+      },
+      "required": [],
+      "type": "object",
+    },
+    "write": false,
+  },
+  {
+    "name": "get_activity",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "integer",
+        },
+      },
+      "required": [
+        "id",
+      ],
+      "type": "object",
+    },
+    "write": false,
+  },
+  {
+    "name": "get_series",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "agg": {
+          "enum": [
+            "day",
+            "week",
+          ],
+          "type": "string",
+        },
+        "from": {
+          "description": "YYYY-MM-DD",
+          "type": "string",
+        },
+        "keys": {
+          "items": {
+            "enum": [
+              "load",
+              "ctl",
+              "atl",
+              "tsb",
+              "acwr",
+              "ramp7",
+              "steps",
+              "rhr",
+              "stress_avg",
+              "body_battery_max",
+              "sleep_total_s",
+              "sleep_score",
+              "hrv",
+              "readiness",
+              "run_km",
+            ],
+            "type": "string",
+          },
+          "maxItems": 6,
+          "minItems": 1,
+          "type": "array",
+        },
+        "to": {
+          "description": "YYYY-MM-DD",
+          "type": "string",
+        },
+      },
+      "required": [
+        "keys",
+      ],
+      "type": "object",
+    },
+    "write": false,
+  },
+  {
+    "name": "project_load",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "daily_load": {
+          "maximum": 500,
+          "minimum": 0,
+          "type": "number",
+        },
+        "days": {
+          "maximum": 42,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "planned": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "date": {
+                "description": "YYYY-MM-DD",
+                "type": "string",
+              },
+              "load": {
+                "maximum": 500,
+                "minimum": 0,
+                "type": "number",
+              },
+            },
+            "required": [
+              "date",
+              "load",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+      },
+      "required": [],
+      "type": "object",
+    },
+    "write": false,
+  },
+  {
+    "name": "get_race_predictions",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object",
+    },
+    "write": false,
+  },
+  {
+    "name": "get_vo2_estimate",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object",
+    },
+    "write": false,
+  },
+  {
+    "name": "get_correlations",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "type": "string",
+        },
+        "y": {
+          "type": "string",
+        },
+      },
+      "required": [],
+      "type": "object",
+    },
+    "write": false,
+  },
+  {
+    "name": "get_shoes",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object",
+    },
+    "write": false,
+  },
+  {
+    "name": "get_notes",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object",
+    },
+    "write": false,
+  },
+  {
+    "name": "add_note",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "expires_on": {
+          "description": "YYYY-MM-DD",
+          "type": "string",
+        },
+        "kind": {
+          "enum": [
+            "injury",
+            "illness",
+            "schedule",
+            "preference",
+            "other",
+          ],
+          "type": "string",
+        },
+        "text": {
+          "maxLength": 300,
+          "type": "string",
+        },
+      },
+      "required": [
+        "kind",
+        "text",
+      ],
+      "type": "object",
+    },
+    "write": true,
+  },
+  {
+    "name": "resolve_note",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "integer",
+        },
+      },
+      "required": [
+        "id",
+      ],
+      "type": "object",
+    },
+    "write": true,
+  },
+  {
+    "name": "get_planned",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object",
+    },
+    "write": false,
+  },
+  {
+    "name": "set_planned",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "description": "YYYY-MM-DD",
+          "type": "string",
+        },
+        "label": {
+          "maxLength": 60,
+          "type": "string",
+        },
+        "load": {
+          "maximum": 500,
+          "minimum": 0,
+          "type": "number",
+        },
+      },
+      "required": [
+        "date",
+        "load",
+      ],
+      "type": "object",
+    },
+    "write": true,
+  },
+  {
+    "name": "set_rpe",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "activity_id": {
+          "type": "integer",
+        },
+        "date": {
+          "description": "YYYY-MM-DD",
+          "type": "string",
+        },
+        "rpe": {
+          "maximum": 10,
+          "minimum": 1,
+          "type": "number",
+        },
+        "type": {
+          "enum": [
+            "run",
+            "bike",
+            "ski",
+            "strength",
+          ],
+          "type": "string",
+        },
+      },
+      "required": [
+        "rpe",
+      ],
+      "type": "object",
+    },
+    "write": true,
+  },
+  {
+    "name": "get_steps",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "days": {
+          "maximum": 90,
+          "minimum": 1,
+          "type": "integer",
+        },
+      },
+      "required": [],
+      "type": "object",
+    },
+    "write": false,
+  },
+  {
+    "name": "get_goals",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "required": [],
+      "type": "object",
+    },
+    "write": false,
+  },
+  {
+    "name": "set_goal",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "race",
+            "distance",
+            "weekly_km",
+            "steps",
+            "ctl",
+            "weight",
+            "custom",
+          ],
+          "type": "string",
+        },
+        "target_date": {
+          "description": "YYYY-MM-DD",
+          "type": "string",
+        },
+        "target_max": {
+          "type": "number",
+        },
+        "target_value": {
+          "type": "number",
+        },
+        "title": {
+          "maxLength": 80,
+          "type": "string",
+        },
+        "unit": {
+          "maxLength": 12,
+          "type": "string",
+        },
+      },
+      "required": [
+        "kind",
+        "title",
+      ],
+      "type": "object",
+    },
+    "write": true,
+  },
+  {
+    "name": "update_goal",
+    "schema": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "integer",
+        },
+        "status": {
+          "enum": [
+            "active",
+            "done",
+            "dropped",
+          ],
+          "type": "string",
+        },
+        "target_date": {
+          "description": "YYYY-MM-DD",
+          "type": "string",
+        },
+        "target_max": {
+          "type": "number",
+        },
+        "target_value": {
+          "type": "number",
+        },
+        "title": {
+          "maxLength": 80,
+          "type": "string",
+        },
+      },
+      "required": [
+        "id",
+      ],
+      "type": "object",
+    },
+    "write": true,
+  },
+]
+`;

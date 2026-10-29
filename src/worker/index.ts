@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { Fetch, verifyAccess } from './access.js'
 import { metricRoutes } from './api.js'
+import { coachRoutes } from '../coach.js'
 
 export interface DB {
   prepare(sql: string): { bind(...a: unknown[]): { all<T>(): Promise<{ results: T[] }>; run(): Promise<unknown> } }
@@ -12,6 +13,7 @@ export type Env = {
   ACCESS_TEAM_DOMAIN: string; ACCESS_AUD: string
   GITHUB_REPO: string; GITHUB_REF?: string; GITHUB_DISPATCH_TOKEN: string
   GARMIN_KEY_EXPIRES?: string; PAT_EXPIRES?: string
+  ANTHROPIC_API_KEY?: string; COACH_MODEL?: string; COACH_MONTHLY_USD_CAP?: string // secret, vars; no key = coach off
 }
 type Deps = { fetch: Fetch; now: () => number }
 
@@ -62,7 +64,10 @@ export function createApp(deps: Deps = { fetch: (...a) => fetch(...a), now: Date
     })
   })
 
+  app.get('/api/config', (c) => c.json({ coach_enabled: !!c.env.ANTHROPIC_API_KEY }))
+
   metricRoutes(app, deps.now)
+  coachRoutes(app, deps)
 
   app.post('/api/sync', async (c) => {
     const now = deps.now(), last = Number((await state(c.env)).dispatch_requested_at) || 0
