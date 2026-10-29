@@ -74,18 +74,19 @@ type Frame = { dates: string[]; xf?: (d: string) => string; h?: number; yfmt?: (
 export type Series = { name: string; v: Num[]; c: string; w?: number; dash?: string }
 
 /** Shared frame: size measuring, axes, hover state, tooltip, hidden summary. `draw` gets the scales. */
-function Frame(p: Frame & { bars?: boolean; n: number; y0: number; y1: number; yt: number[]; draw: (X: (i: number) => number, Y: (v: number) => number, w: number) => ComponentChildren; lines: (i: number) => string[]; legend?: ComponentChildren }) {
+function Frame(p: Frame & { onSel?: (i: number) => void; bars?: boolean; n: number; y0: number; y1: number; yt: number[]; draw: (X: (i: number) => number, Y: (v: number) => number, w: number) => ComponentChildren; lines: (i: number) => string[]; legend?: ComponentChildren }) {
   const [ref, w] = useWidth(), [hov, setHov] = useState<number | null>(null)
   const h = p.h ?? 200, n = p.n, X = (i: number) => (p.bars ? ML + ((i + 0.5) * (w - ML - MR)) / n : n < 2 ? (ML + w - MR) / 2 : ML + (i / (n - 1)) * (w - ML - MR)), Y = scale(p.y0, p.y1, h - MB, MT)
-  const at = (e: PointerEvent) => {
+  const idx = (e: PointerEvent | MouseEvent) => {
     const r = (e.currentTarget as SVGElement).getBoundingClientRect(), x = ((e.clientX - r.left) / r.width) * w
     const f = ((x - ML) / (w - ML - MR)) * (p.bars ? n : n - 1)
-    setHov(n < 2 ? 0 : Math.max(0, Math.min(n - 1, p.bars ? Math.floor(f) : Math.round(f))))
+    return n < 2 ? 0 : Math.max(0, Math.min(n - 1, p.bars ? Math.floor(f) : Math.round(f)))
   }
+  const at = (e: PointerEvent) => setHov(idx(e))
   const xt = n < 2 ? [0] : [0, Math.round((n - 1) / 2), n - 1], fy = p.yfmt ?? ((v: number) => num(v))
   const hx = hov == null ? 0 : X(hov)
   return <div class="cvw" ref={ref}>
-    <svg class="cv" viewBox={`0 0 ${w} ${h}`} role="img" aria-label={p.label} onPointerMove={at} onPointerDown={at} onPointerLeave={(e) => e.pointerType === 'mouse' && setHov(null)}>
+    <svg class="cv" viewBox={`0 0 ${w} ${h}`} role="img" aria-label={p.label} onClick={p.onSel && ((e) => p.onSel!(idx(e)))} onPointerMove={at} onPointerDown={at} onPointerLeave={(e) => e.pointerType === 'mouse' && setHov(null)}>
       {p.yt.map((v) => <><line class="gl" x1={ML} x2={w - MR} y1={Y(v)} y2={Y(v)} /><text x={w - MR + 6} y={Y(v) + 4}>{fy(v)}</text></>)}
       {p.n > 0 && xt.map((i, k) => <text x={X(i)} y={h - 5} text-anchor={k === 0 && xt.length > 1 ? 'start' : k === xt.length - 1 && xt.length > 1 ? 'end' : 'middle'}>{(p.xf ?? ((d) => day(d, { day: 'numeric', month: 'short' })))(p.dates[i])}</text>)}
       {p.draw(X, Y, w)}
@@ -117,15 +118,17 @@ export function LineChart(p: Frame & { series: Series[]; band?: { lo: Num[]; hi:
 
 export type Stack = { name: string; c: string; hide?: boolean }
 /** vals[bar][segment]. A hidden segment (a spacer under a floating range bar) is drawn invisible and left out of the tooltip. */
-export function StackedBars(p: Frame & { stacks: Stack[]; vals: Num[][]; top?: number; legend?: boolean; goal?: number }) {
-  const n = p.dates.length, tot = p.vals.map((r) => stack(r)[r.length - 1]?.[1] ?? 0), hi = p.top ?? Math.max(1, p.goal ? p.goal * 1.15 : 0, ...tot)
+/** `sel` marks one bar and `onSel` makes bars clickable; `band` shades a target range, `goal` draws a dashed target line. */
+export function StackedBars(p: Frame & { stacks: Stack[]; vals: Num[][]; top?: number; legend?: boolean; goal?: number; band?: [number, number]; sel?: number; onSel?: (i: number) => void }) {
+  const n = p.dates.length, tot = p.vals.map((r) => stack(r)[r.length - 1]?.[1] ?? 0), hi = p.top ?? Math.max(1, p.goal ? p.goal * 1.15 : 0, p.band ? p.band[1] * 1.15 : 0, ...tot)
   if (!n || !tot.some((t) => t > 0)) return <p class="empty">{p.summary}</p>
   const lines = p.tip ?? ((i: number) => [day(p.dates[i], { weekday: 'short', day: 'numeric', month: 'short' }), ...p.stacks.map((s, k) => (s.hide ? '' : `${s.name} ${fin(p.vals[i][k]) ? (p.yfmt ?? ((v: number) => num(v)))(p.vals[i][k] as number) + (p.unit ?? '') : DASH}`)).filter(Boolean)])
-  return <Frame {...p} bars n={n} y0={0} y1={hi} yt={ticks(0, hi, 4)} lines={lines}
+  return <Frame {...p} onSel={p.onSel} bars n={n} y0={0} y1={hi} yt={ticks(0, hi, 4)} lines={lines}
     legend={p.legend !== false && <div class="legend">{p.stacks.filter((s) => !s.hide).map((s) => <span><i style={`background:${s.c}`} />{s.name}</span>)}</div>}
     draw={(X, Y, w) => {
       const bw = Math.max(2, Math.min(40, ((w - ML - MR) / n) * 0.7))
-      return <>{p.vals.map((r, i) => stack(r).map(([a, b], k) => b > a && !p.stacks[k].hide && <rect x={X(i) - bw / 2} y={Y(b)} width={bw} height={Math.max(1, Y(a) - Y(b))} rx={Math.min(3, bw / 2)} fill={p.stacks[k].c} />))}
+      return <>{p.band && <rect x={ML} width={w - ML - MR} y={Y(p.band[1])} height={Y(p.band[0]) - Y(p.band[1])} fill="var(--ok)" opacity=".14" />}
+        {p.vals.map((r, i) => stack(r).map(([a, b], k) => b > a && !p.stacks[k].hide && <rect x={X(i) - bw / 2} y={Y(b)} width={bw} height={Math.max(1, Y(a) - Y(b))} rx={Math.min(3, bw / 2)} fill={p.stacks[k].c} opacity={p.sel != null && p.sel !== i ? 0.45 : 1} />))}
         {p.goal != null && <line x1={ML} x2={w - MR} y1={Y(p.goal)} y2={Y(p.goal)} stroke="var(--ink)" stroke-dasharray="4 4" />}</>
     }} />
 }

@@ -35,7 +35,7 @@ export type Share = { easy: number; mid: number; hard: number; minutes: number }
 export type IntensityResp = { as_of: string; weeks: { week_start: string; minutes: Record<string, number[]> }[]
   share_28d?: { all: Share; by_sport: Record<string, Share>; easy_target: [number, number] } }
 
-export type MileageResp = { as_of: string; by: 'week' | 'month' | 'year'; sport: string; periods: { key: string; km: number; hours: number; elev_m: number; sessions: number }[] }
+export type MileageResp = { as_of: string; by: 'week' | 'month' | 'year'; sport: string; periods: { key: string; km: number; hours: number; elev_m: number; sessions: number; longest_km?: number }[] }
 export type CompareResp = { as_of: string; sport: string; today?: string; goal_km: number | null; years: { year: number; total_km: number; points: [number, number][] }[]
   rolling: { dates: string[]; km30: (number | null)[]; km365: (number | null)[] } }
 
@@ -53,7 +53,9 @@ export type ActResp = { as_of: string; activity: ActRow & { moving_s: number | n
 type DynPoint = { avg: number; n: number } | null
 export type DynResp = { as_of: string; weeks: ({ week_start: string } & Record<'stride_m' | 'vert_osc_mm' | 'vert_ratio' | 'gct_ms' | 'gct_balance' | 'cadence' | 'power', DynPoint>)[] }
 
+type Top = { id: number; date: string; distance_m: number | null; duration_s: number | null; elev_gain_m: number | null } | null
 export type RecordsResp = { as_of: string; available: boolean; n_runs: number
+  ranges?: Record<string, Record<string, { value: number; date: string; activity_id: number }>>; longest?: Top; climb?: Top; rides?: { n: number; fastest: Top; longest: Top; climb: Top } | null
   records: { label: string; unit: 's' | 'W'; best: { rank: number; value: number; date: string; activity_id: number }[]; timeline: { date: string; value: number; activity_id: number }[] }[] }
 export type Vo2 = { value: number | null; n: number; from: string; to: string; history: { week_start: string; value: number | null; n: number }[] }
 export type CsFit = { ok: boolean; reason: string | null; n: number; cs?: number; dprime?: number; r2?: number; from: string; to: string }

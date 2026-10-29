@@ -9,7 +9,7 @@ import type { ActDetail, ActList, ActResp, ActRow, Lap } from './types'
 
 const SPORT: Record<string, string> = { run: 'Running', bike: 'Cycling', ski: 'Skiing', strength: 'Strength', other: 'Other' }
 const sportName = (s?: string) => SPORT[s ?? 'other'] ?? 'Other'
-const FILTERS: [string, string][] = [['all', 'All'], ['run', 'Run'], ['bike', 'Bike'], ['ski', 'Ski'], ['strength', 'Strength']]
+const FILTERS: [string, string][] = [['all', 'All'], ['run', 'Runs'], ['bike', 'Rides'], ['ski', 'Ski'], ['strength', 'Strength']]
 const footed = (s?: string, t?: string | null) => s === 'run' || /walk|hik/i.test(t ?? '')
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`
 const clockOf = (s: number) => (s >= 3600 ? `${Math.floor(s / 3600)}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}:${String(Math.round(s % 60)).padStart(2, '0')}` : mmss(s))
@@ -17,19 +17,27 @@ const paceOf = (mps: number | null | undefined) => (mps && mps > 0.3 ? mmss(1000
 
 // ---- list ----
 function Row({ a }: { a: ActRow }) {
-  const run = footed(a.sport, a.type), has = (a.distance_m ?? 0) > 0
+  const run = footed(a.sport, a.type), has = (a.distance_m ?? 0) > 0, ride = a.sport === 'bike'
+  const mid = [day(a.start_local, { day: 'numeric', month: 'short' }), has && run ? `${pace(a.distance_m, a.duration_s)} /km` : has && ride && a.duration_s ? `${num(((a.distance_m ?? 0) / a.duration_s) * 3.6, 1)} km/h` : !run && !ride ? sportName(a.sport) : '', a.avg_hr != null ? `${num(a.avg_hr)} bpm` : '', ride ? 'ride' : ''].filter(Boolean).join(' · ')
   return <a class="arow" href={`#/activities/${a.id}`}>
-    <span class="at"><b>{a.name || sportName(a.sport)}</b><small>{day(a.start_local, { weekday: 'short', day: 'numeric', month: 'short' })} · {sportName(a.sport)}</small></span>
-    <span class="av">{has && <b>{km(a.distance_m)}<small> km</small></b>}<small>{dur(a.duration_s)}{run && has ? ` · ${pace(a.distance_m, a.duration_s)} /km` : ''}{a.avg_hr != null ? ` · ${num(a.avg_hr)} bpm` : ''}</small></span>
+    <span class="at"><b>{a.name || sportName(a.sport)}</b><small>{mid}</small></span>
+    <span class="av"><b>{has ? km(a.distance_m) : dur(a.duration_s)}</b><small>{has ? `km · ${dur(a.duration_s)}` : 'time'}</small></span>
   </a>
 }
 
+const month = (k: string) => day(k + '-01', { month: 'long', year: 'numeric' })
+
 export function ActivitiesView({ items, sport, setSport, more, onMore, busy, err }: { items: ActRow[]; sport: string; setSport: (s: string) => void; more: boolean; onMore: () => void; busy: boolean; err: string | null }) {
+  const groups: [string, ActRow[]][] = []
+  for (const a of items) { const k = a.start_local.slice(0, 7), g = groups[groups.length - 1]; if (g?.[0] === k) g[1].push(a); else groups.push([k, [a]]) }
+  const since = items.length ? day(items[items.length - 1].start_local, { day: 'numeric', month: 'short', year: 'numeric' }) : ''
   return <>
     <p class="sub">Everything you have recorded, newest first.</p>
-    <div class="tools"><div class="seg" role="group" aria-label="Sport">{FILTERS.map(([k, l]) => <button type="button" aria-pressed={sport === k} onClick={() => setSport(k)}>{l}</button>)}</div></div>
+    <div class="tools"><div class="seg" role="group" aria-label="Sport">{FILTERS.map(([k, l]) => <button type="button" aria-pressed={sport === k} onClick={() => setSport(k)}>{l}</button>)}</div>
+      {items.length > 0 && <span class="lab" role="status">{items.length} activities since {since}{more ? ', more to load' : ''}</span>}</div>
     {!items.length && !err ? <section class="card"><p class="k">Nothing here yet</p><p class="t0">{sport === 'all' ? 'No activities have synced.' : `No ${sportName(sport).toLowerCase()} activities have synced.`}</p><a class="btn" href="#/settings">Open Settings</a></section>
-      : <section class="card alist">{items.map((a) => <Row a={a} />)}</section>}
+      : <div class="pg">{groups.map(([k, g]) => { const runs = g.filter((a) => footed(a.sport, a.type)), rk = runs.reduce((t, a) => t + (a.distance_m ?? 0), 0)
+        return <section class="card alist"><p class="k"><b>{month(k)}</b><span>{runs.length ? `${runs.length} ${runs.length === 1 ? 'run' : 'runs'} · ${km(rk, 0)} km` : `${g.length} ${g.length === 1 ? 'activity' : 'activities'}`}</span></p>{g.map((a) => <Row a={a} />)}</section> })}</div>}
     {err && <Err msg={err} retry={onMore} />}
     {more && !err && <p style="text-align:center;margin:14px 0"><button class="btn g" disabled={busy} onClick={onMore}>{busy ? 'Loading' : 'Load more'}</button></p>}
   </>

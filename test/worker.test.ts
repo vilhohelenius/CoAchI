@@ -233,6 +233,7 @@ describe('records and fitness endpoints', () => {
     expect(r).toMatchObject({ available: true, n_runs: 3 })
     const k = r.records.find((x: any) => x.label === '5k')
     expect(k.best.map((b: any) => [b.rank, b.value])).toEqual([[1, 1250], [2, 1270], [3, 1300]]); expect(k.timeline.map((b: any) => b.value)).toEqual([1300, 1250])
+    expect(r.ranges.l12['5k']).toMatchObject({ value: 1250, date: '2030-05-15', activity_id: 2 }); expect(r.rides).toBeNull(); expect(r.longest).toBeNull()
     expect(r.records.some((x: any) => x.label === 'p60')).toBe(false)
     const f = await get('/api/fitness-estimates?riegel=1.08', m)
     expect(f).toMatchObject({ available: true, riegel: 1.08, cs: { ok: true, n: 4 }, vo2: { n: 3 } }); expect(f.vo2.value).toBeGreaterThan(40); expect(f.vo2.history).toHaveLength(26)
@@ -254,7 +255,7 @@ describe('mileage and activities', () => {
   it('bars by week, month and year, filled and filtered', async () => {
     const m = mk(); await seed(m.l)
     const w = await get('/api/mileage?by=week&sport=run', m)
-    expect(w.periods.length).toBe(52); expect(w.periods.at(-1)).toMatchObject({ key: '2030-05-27', km: 12, sessions: 2 })
+    expect(w.periods.length).toBe(52); expect(w.periods.at(-1)).toMatchObject({ key: '2030-05-27', km: 12, sessions: 2 }); expect(w.periods.at(-1).longest_km).toBeGreaterThan(0)
     const mo = await get('/api/mileage?by=month', m)
     expect(mo.periods.length).toBe(24); expect(mo.periods.find((p: any) => p.key === '2030-01').km).toBe(30)
     const y = await get('/api/mileage?by=year&sport=run', m)

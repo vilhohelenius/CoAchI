@@ -243,5 +243,64 @@
     }
    ]
   }
- ]
+ ],
+ "ranges": {
+  "yr": {
+   "1k": {
+    "value": 225,
+    "date": "2030-02-09",
+    "activity_id": 103
+   },
+   "5k": {
+    "value": 1290,
+    "date": "2030-03-02",
+    "activity_id": 105
+   }
+  },
+  "l12": {
+   "1k": {
+    "value": 215,
+    "date": "2030-04-21",
+    "activity_id": 104
+   }
+  }
+ },
+ "longest": {
+  "id": 110,
+  "date": "2030-03-17",
+  "distance_m": 24100,
+  "duration_s": 8100,
+  "elev_gain_m": 180
+ },
+ "climb": {
+  "id": 111,
+  "date": "2029-09-23",
+  "distance_m": 15200,
+  "duration_s": 5400,
+  "elev_gain_m": 420
+ },
+ "rides": {
+  "n": 12,
+  "fastest": {
+   "id": 120,
+   "date": "2029-07-04",
+   "distance_m": 42000,
+   "duration_s": 5400,
+   "elev_gain_m": 200
+  },
+  "longest": {
+   "id": 121,
+   "date": "2029-08-09",
+   "distance_m": 80000,
+   "duration_s": 10800,
+   "elev_gain_m": 600
+  },
+  "climb": {
+   "id": 122,
+   "date": "2029-08-30",
+   "distance_m": 60000,
+   "duration_s": 9000,
+   "elev_gain_m": 900
+  }
+ }
 }

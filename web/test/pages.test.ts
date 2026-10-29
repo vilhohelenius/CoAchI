@@ -76,10 +76,11 @@ describe('page renders', () => {
   })
   it('Mileage, normal and sparse', () => {
     const html = render(h(MileageView, { d: mWeek as never, c: mCmp as never }))
-    for (const x of ['Distance per week', 'Cumulative distance for each year', 'the same day last year', 'Goal pace', 'Last 30 days, rolling', 'Last 365 days, rolling', '2030']) expect(html).toContain(x)
+    for (const x of ['Last 16 weeks', 'tap a bar', 'Longest', 'Compared with before', 'This week', 'Last week', 'a comparison, not a target', '30 days', '365 days', 'compared with the week before']) expect(html).toContain(x)
     clean(html)
     const bare = render(h(MileageView, { d: { as_of: 'x', by: 'year', sport: 'ski', periods: [{ key: '2030', km: 0, hours: 0, elev_m: 0, sessions: 0 }] }, c: { as_of: 'x', sport: 'ski', goal_km: null, years: [], rolling: { dates: [], km30: [], km365: [] } } }))
-    expect(bare).toContain('No activities in this view yet'); expect(bare).toContain('No distance recorded yet'); expect(bare).toContain('Needs a full year of history'); clean(bare)
+    expect(bare).toContain('No activities in this view yet'); expect(bare).toContain('No distance recorded yet'); clean(bare)
+    expect(render(h(MileageView, { d: { ...mWeek, by: 'year', periods: [{ key: '2029', km: 5, hours: 1, elev_m: 1, sessions: 1 }, { key: '2030', km: 7, hours: 1, elev_m: 1, sessions: 1 }] } as never, c: mCmp as never, per: 'all' }))).toContain('Through 2030')
   })
   it('Activity list, normal and empty', () => {
     const html = render(h(ActivitiesView, { items: acts.activities as never, sport: 'all', setSport: noop, more: true, onMore: noop, busy: false, err: null }))
@@ -145,7 +146,7 @@ describe('page renders', () => {
   })
   it('Records and predictions, normal and null-heavy', () => {
     const html = render(h(RecordsView, { d: recs as never, sel: '5k', setSel: noop }))
-    for (const x of ['Best efforts across 142 runs', 'Half marathon', '21:00', 'How your best 5 km changed', 'Next:']) expect(html).toContain(x)
+    for (const x of ['Best efforts', 'Half marathon', '21:00', '5 km over time', 'Open longest run', 'New PR', 'Last 12 months', 'Cycling']) expect(html).toContain(x)
     clean(html)
     const one = render(h(RecordsView, { d: { ...recs, records: [{ ...recs.records[2], timeline: recs.records[2].timeline.slice(0, 1) }] } as never, sel: '5k', setSel: noop }))
     expect(one).toContain('Only one record so far'); clean(one)

@@ -146,10 +146,10 @@ export function metricRoutes(app: App, now: () => number) {
     let first = n ? step(cur, -(n - 1)) : ''
     if (!n) first = (await q<any>(c.env.DB, `SELECT MIN(substr(start_local,1,4)) y FROM activities WHERE 1=1${sportWhere(sp)}`))[0]?.y ?? cur
     const lo = by === 'week' ? first : by === 'month' ? `${first}-01` : `${first}-01-01`
-    const rows = await q<any>(c.env.DB, `SELECT ${key} k, SUM(distance_m) m, SUM(duration_s) s, SUM(elev_gain_m) e, COUNT(*) n FROM activities WHERE start_local >= ?${sportWhere(sp)} GROUP BY k`, lo)
+    const rows = await q<any>(c.env.DB, `SELECT ${key} k, SUM(distance_m) m, SUM(duration_s) s, SUM(elev_gain_m) e, COUNT(*) n, MAX(distance_m) mx FROM activities WHERE start_local >= ?${sportWhere(sp)} GROUP BY k`, lo)
     const m = Object.fromEntries(rows.map((r) => [r.k, r]))
     const count = n || +cur - +first + 1
-    const periods = Array.from({ length: count }, (_, i) => { const k = step(first, i), r = m[k]; return { key: k, km: r ? km1(r.m ?? 0) : 0, hours: r ? Math.round((r.s ?? 0) / 360) / 10 : 0, elev_m: r ? Math.round(r.e ?? 0) : 0, sessions: r?.n ?? 0 } })
+    const periods = Array.from({ length: count }, (_, i) => { const k = step(first, i), r = m[k]; return { key: k, km: r ? km1(r.m ?? 0) : 0, hours: r ? Math.round((r.s ?? 0) / 360) / 10 : 0, elev_m: r ? Math.round(r.e ?? 0) : 0, sessions: r?.n ?? 0, longest_km: r ? km1(r.mx ?? 0) : 0 } })
     return c.json({ as_of: asOf(), by, sport: sp ?? 'all', periods })
   })
 
@@ -185,7 +185,17 @@ export function metricRoutes(app: App, now: () => number) {
           best: mine.filter((r) => r.rank).sort((a, b) => a.rank! - b.rank!).map((r) => ({ rank: r.rank, value: r.value, date: r.date, activity_id: r.activity_id })),
           timeline: mine.filter((r) => r.is_pb).map((r) => ({ date: r.date, value: r.value, activity_id: r.activity_id })) }
       })
-      return c.json({ as_of: asOf(), available: n.n > 0, n_runs: n.n, records })
+      // Best per label within a date window, from the per-run efforts (the stored top 3 cannot answer "this year").
+      const today = asOf().slice(0, 10), since = { yr: today.slice(0, 4) + '-01-01', l12: addDays(today, -365) }
+      const eff = await q<{ label: string; activity_id: number; value: number; date: string }>(c.env.DB, `SELECT e.label, e.activity_id, e.value, substr(a.start_local,1,10) date FROM activity_efforts e JOIN activities a ON a.id=e.activity_id WHERE e.label <> 'done' AND substr(a.start_local,1,10) >= ?`, since.l12 < since.yr ? since.l12 : since.yr)
+      const ranges = Object.fromEntries(Object.entries(since).map(([k, from]) => [k, Object.fromEntries(BEST_LABELS.flatMap((label) => {
+        const mine = eff.filter((r) => r.label === label && r.date >= from).sort((a, b) => (label.startsWith('p') ? b.value - a.value : a.value - b.value))
+        return mine.length ? [[label, { value: mine[0].value, date: mine[0].date, activity_id: mine[0].activity_id }]] : []
+      }))]))
+      const top = async (sp: string, by: string) => (await q<{ id: number; date: string; distance_m: number | null; duration_s: number | null; elev_gain_m: number | null }>(c.env.DB, `SELECT id, substr(start_local,1,10) date, distance_m, duration_s, elev_gain_m FROM activities WHERE ${SPORT_SQL[sp]} AND ${by} IS NOT NULL ORDER BY ${by} DESC LIMIT 1`))[0] ?? null
+      const [nr] = await q<{ n: number }>(c.env.DB, `SELECT COUNT(*) n FROM activities WHERE ${SPORT_SQL.bike}`)
+      const rides = nr.n ? { n: nr.n, fastest: await top('bike', 'CASE WHEN distance_m >= 5000 AND duration_s > 0 THEN distance_m / duration_s END'), longest: await top('bike', 'distance_m'), climb: await top('bike', 'elev_gain_m') } : null
+      return c.json({ as_of: asOf(), available: n.n > 0, n_runs: n.n, records, ranges, longest: await top('run', 'distance_m'), climb: await top('run', 'elev_gain_m'), rides })
     } catch { return c.json({ as_of: asOf(), available: false, n_runs: 0, records: [] }) }
   })
 

@@ -112,6 +112,33 @@ describe('frontend end to end', () => {
     for (const h of ['#/insights/hrv', '#/insights/rhr', '#/insights/battery', '#/insights/load', '#/insights/status', '#/insights/sleep', '#/insights/recovery']) expect(hrefs).toContain(h)
     expect(hrefs.some((h) => /^#\/activities\/\d+$/.test(h ?? ''))).toBe(true)
   })
+  it('records: range segment changes the table, a row drives the chart, Cycling shows speed bests', async () => {
+    await go('#/records')
+    await vi.waitFor(() => expect(root.querySelector('.tbl')).toBeTruthy())
+    const btn = (t: string) => [...root.querySelectorAll('button')].find((b) => b.textContent === t) as HTMLButtonElement
+    const hasPr = () => root.querySelector('.tbl')!.textContent!.includes('PR')
+    expect(hasPr()).toBe(true)
+    btn('This year').click()
+    await vi.waitFor(() => expect(btn('This year').getAttribute('aria-pressed')).toBe('true'))
+    expect(root.querySelector('.tbl')!.textContent).toContain('No run in this range')
+    ;(root.querySelector('.tbl tr[role=button]:not(.hit)') as HTMLElement).click()
+    await vi.waitFor(() => expect(root.querySelector('.tbl tr.hit')).toBeTruthy())
+    btn('Cycling').click()
+    await vi.waitFor(() => expect(root.textContent).toContain('Fastest average speed'))
+    expect(root.querySelector('.rl a')?.getAttribute('href')).toMatch(/^#\/activities\/\d+$/)
+  })
+  it('mileage: period segment incl. All time, compare window switch', async () => {
+    await go('#/mileage')
+    await vi.waitFor(() => expect(root.querySelector('.big')).toBeTruthy())
+    const btn = (t: string) => [...root.querySelectorAll('button')].find((b) => b.textContent === t) as HTMLButtonElement
+    btn('All time').click()
+    await vi.waitFor(() => expect(root.textContent).toContain('Through'))
+    btn('Year').click()
+    await vi.waitFor(() => expect(root.textContent).not.toContain('Through'))
+    btn('365 days').click()
+    await vi.waitFor(() => expect(root.textContent).toContain('365 days before'))
+    expect(root.textContent).not.toMatch(/NaN|undefined/)
+  })
   it('unknown route falls back to Today', async () => {
     location.hash = '#/nope'
     await vi.waitFor(() => expect(root.querySelector('.nav [aria-current]')?.textContent).toBe('Today'))

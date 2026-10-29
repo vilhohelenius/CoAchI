@@ -114,7 +114,7 @@ input[type=range]{width:100%;accent-color:var(--link);min-height:32px}
 @media(min-width:900px){.g2{grid-template-columns:1fr 1fr}.g2 .wide{grid-column:1/-1}.pr{grid-template-columns:repeat(4,1fr)}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 /* activities, mileage */
-.alist{padding:4px 16px}
+.alist{padding:14px 16px 4px}
 .arow{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:64px;padding:10px 0;border-top:1px solid var(--line);color:var(--ink);text-decoration:none}.arow:first-child{border-top:0}
 .arow:hover .at b{text-decoration:underline}
 .at,.av{display:flex;flex-direction:column;min-width:0}.av{text-align:right;flex:none}.at b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -147,3 +147,10 @@ input[type=number]{font:inherit;color:var(--ink);background:var(--soft);border:1
 .cl{color:inherit;text-decoration:none}.cl::after{content:"";position:absolute;inset:0;border-radius:var(--r)}.cl:focus-visible{outline:0}
 .card:has(.cl:hover),a.t:hover{box-shadow:0 0 0 2px var(--line)}.card:has(.cl:focus-visible),a.t:focus-visible{outline:2px solid var(--link);outline-offset:2px}
 a.t{color:inherit;text-decoration:none}.parts{position:relative;z-index:1}
+
+/* mock .rl row lists and selectable table rows */
+.rl>*{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:11px 0;border-top:1px solid var(--line);color:inherit;text-decoration:none;min-width:0}.rl>*:first-child{border-top:0}
+.rl.n2>*{grid-template-columns:1fr auto}.rl a:hover .nm{text-decoration:underline}
+.rl .nm{font-weight:600}.rl .ms{display:block;font-size:13px;color:var(--mute)}
+.rl .rv{font-family:var(--fd);font-weight:800;font-size:26px;line-height:1;text-align:right}.rl .rv small{display:block;font:400 12.5px system-ui;color:var(--mute);margin-top:2px}
+.tbl tr[aria-pressed]{cursor:pointer}.tbl tr[aria-pressed]:hover td{background:var(--soft)}.tbl td.empty{color:var(--mute)}

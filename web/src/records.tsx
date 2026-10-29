@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks'
 import { useApi } from './api'
 import { LineChart, summarize } from './chart'
 import { DASH, day, num } from './fmt'
-import { Err, Page, Tile } from './today'
+import { Err, Page, Pill, Tile } from './today'
 import type { FitnessResp, Prediction, RecordsResp } from './types'
 
 const NAMES: Record<string, string> = { '1k': '1 km', '1mi': '1 mile', '5k': '5 km', '10k': '10 km', hm: 'Half marathon', marathon: 'Marathon' }
@@ -20,27 +20,51 @@ const perKm = (mps: number) => hms(1000 / mps)
 const ago = (d: number) => (d < 14 ? `${d} days ago` : d < 120 ? `${Math.round(d / 7)} weeks ago` : `${Math.round(d / 30)} months ago`)
 
 // ---- records ----
+type Eff = { value: number; date: string; activity_id: number }
+const RANGES: [string, string][] = [['all', 'All time'], ['yr', 'This year'], ['l12', 'Last 12 months']]
+const when = (d: string, as: string) => (Date.parse(as) - Date.parse(d)) / 864e5
+
 export function RecordsView({ d, sel, setSel }: { d: RecordsResp; sel: string; setSel: (k: string) => void }) {
-  const rows = d.records.filter((r) => r.best.length)
-  if (!d.available || !rows.length) return <section class="card"><p class="k">Not enough data yet</p><p class="t0">Records are read from the second-by-second file of each run. They appear once runs have synced with their files and the records step has run.</p><a class="btn" href="#/settings">Open Settings</a></section>
+  const [range, setRange] = useState('all'), [sport, setSport] = useState('run')
+  const rows = d.records.filter((r) => r.best.length || r.unit === 's')
+  if (!d.available || !d.records.some((r) => r.best.length)) return <section class="card"><p class="k">Not enough data yet</p><p class="t0">Records are read from the second-by-second file of each run. They appear once runs have synced with their files and the records step has run.</p></section>
   const cur = d.records.find((r) => r.label === sel && r.timeline.length) ?? d.records.find((r) => r.timeline.length)!, tl = cur.timeline
-  const dates = tl.map((x) => x.date), v = tl.map((x) => x.value), w = cur.unit === 'W'
+  const dates = tl.map((x) => x.date), v = tl.map((x) => x.value), w = cur.unit === 'W', fmt = (n: number, u: string) => (u === 'W' ? `${num(n)} W` : hms(n))
+  const pick = (r: RecordsResp['records'][number]): Eff | undefined => (range === 'all' ? r.best[0] : d.ranges?.[range]?.[r.label])
+  const rd = d.rides, lo = d.longest, cl = d.climb
   return <>
-    <section class="card wide"><h3 class="ch">Best efforts across {num(d.n_runs)} {d.n_runs === 1 ? 'run' : 'runs'}</h3>
-      <table class="rt"><thead><tr><th>Distance</th><th>Best</th><th>{rows.some((r) => r.unit === 's') ? 'Pace' : ''}</th><th>Set on</th></tr></thead><tbody>
-        {rows.map((r) => { const b = r.best[0], w2 = r.unit === 'W'; return <tr>
-          <td>{NAMES[r.label]}{r.best.length > 1 && <small class="nx">Next: {r.best.slice(1).map((x) => w2 ? `${num(x.value)} W` : hms(x.value)).join(', ')}</small>}</td>
-          <td class="b">{w2 ? `${num(b.value)} W` : hms(b.value)}</td><td>{w2 ? '' : `${hms(b.value / (DIST[r.label] / 1000))} /km`}</td><td>{short(b.date)}{b.activity_id < 0 && <small class="nx">Entered by hand</small>}</td></tr> })}
-      </tbody></table>
-      <p class="cap2">Fastest continuous stretch of each distance, measured on moving distance. Stretches with a recording gap or a GPS jump are skipped.</p>
-    </section>
-    <section class="card wide"><h3 class="ch">How your best {NAMES[cur.label].toLowerCase()} changed</h3>
-      <div class="tools"><div class="seg w" role="group" aria-label="Distance">{d.records.filter((r) => r.timeline.length).map((r) => <button type="button" aria-pressed={r.label === cur.label} onClick={() => setSel(r.label)}>{NAMES[r.label].replace('Half marathon', 'Half')}</button>)}</div></div>
-      {tl.length < 2 ? <p class="empty">Only one record so far, set on {short(tl[0].date)}. The timeline draws once a second record is set.</p>
-        : <LineChart dates={dates} xf={(x) => day(x, { month: 'short', year: '2-digit' })} h={210} yfmt={(x) => (w ? num(x) : hms(x))} unit={w ? ' W' : ''} label={`${NAMES[cur.label]} personal bests over time`} series={[{ name: NAMES[cur.label], v, c: 'var(--link)' }]}
-          summary={summarize(NAMES[cur.label], dates, v, (n) => (w ? num(n) : hms(n)), w ? ' W' : '')} tip={(i) => [short(dates[i]), w ? `${num(v[i])} W` : hms(v[i])]} />}
-      <p class="cap2">{tl.length} {tl.length === 1 ? 'record' : 'records'} set so far. Each point is a new best on the day it happened.</p>
-    </section>
+    {rd && <div class="tools"><div class="seg" role="group" aria-label="Sport">{[['run', 'Running'], ['ride', 'Cycling']].map(([k, l]) => <button type="button" aria-pressed={sport === k} onClick={() => setSport(k)}>{l}</button>)}</div></div>}
+    {sport === 'ride' && rd ? <section class="card"><p class="k"><b>Speed bests</b><span>{rd.n} {rd.n === 1 ? 'ride' : 'rides'}</span></p><div class="rl n2">
+      {([['Fastest average speed', rd.fastest, (a: NonNullable<typeof rd.fastest>) => [num((a.distance_m! / a.duration_s!) * 3.6, 1), 'km/h']], ['Longest ride', rd.longest, (a: NonNullable<typeof rd.longest>) => [num(a.distance_m! / 1000, 1), 'km']], ['Biggest climb', rd.climb, (a: NonNullable<typeof rd.climb>) => [num(a.elev_gain_m), 'm']]] as const).map(([l, a, f]) => a && <a href={`#/activities/${a.id}`}>
+        <span><span class="nm">{l}</span><span class="ms">{short(a.date)}</span></span><span class="rv">{f(a as never)[0]}<small>{f(a as never)[1]}</small></span></a>)}</div></section> : <>
+    <div class="tools"><div class="seg" role="group" aria-label="Time range">{RANGES.map(([k, l]) => <button type="button" aria-pressed={range === k} onClick={() => setRange(k)}>{l}</button>)}</div></div>
+    <div class="g2">
+      <section class="card"><p class="k"><b>Best efforts</b><span>tap a row for its chart</span></p>
+        <div class="tw"><table class="tbl"><thead><tr><th scope="col">Distance</th><th scope="col" class="r">Time</th><th scope="col" class="r">Pace</th><th scope="col">When</th></tr></thead><tbody>
+          {rows.map((r) => { const b = pick(r), on = r.label === cur.label, go = r.timeline.length > 0, w2 = r.unit === 'W', pr = b && r.best[0] && b.activity_id === r.best[0].activity_id
+            return <tr class={on ? 'hit' : ''} tabindex={go ? 0 : undefined} role={go ? 'button' : undefined} aria-pressed={go ? on : undefined} onClick={go ? () => setSel(r.label) : undefined} onKeyDown={go ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSel(r.label) } } : undefined}>
+              <td><b>{NAMES[r.label] ?? r.label}</b></td>
+              {b ? <><td class="r">{fmt(b.value, r.unit)}</td><td class="r">{w2 ? DASH : `${hms(b.value / (DIST[r.label] / 1000))} /km`}</td>
+                <td>{b.activity_id > 0 ? <a href={`#/activities/${b.activity_id}`}>{short(b.date)}</a> : short(b.date)}{pr && (when(b.date, d.as_of) <= 45 ? <> <Pill tone="ok">New PR</Pill></> : <> <Pill>PR</Pill></>)}{b.activity_id < 0 && <small class="nx"> Entered by hand</small>}</td></>
+                : <><td class="r empty" colspan={2}>Not yet</td><td class="empty">{range === 'all' ? 'No run this long' : 'No run in this range'}</td></>}
+            </tr> })}
+        </tbody></table></div>
+        <p class="cap2">Fastest continuous stretch of each distance, measured on moving distance. Stretches with a recording gap or a GPS jump are skipped. {num(d.n_runs)} {d.n_runs === 1 ? 'run' : 'runs'} read.</p>
+      </section>
+      <div class="pg">
+        <section class="card"><p class="k"><b>{NAMES[cur.label]} over time</b><span>line is the best so far</span></p>
+          {tl.length < 2 ? <p class="empty">Only one record so far, set on {short(tl[0].date)}. The timeline draws once a second record is set.</p>
+            : <LineChart dates={dates} xf={(x) => day(x, { month: 'short', year: '2-digit' })} h={200} yfmt={(x) => (w ? num(x) : hms(x))} unit={w ? ' W' : ''} label={`${NAMES[cur.label]} personal bests over time`} series={[{ name: NAMES[cur.label], v, c: 'var(--link)', w: 2.6 }]}
+              summary={summarize(NAMES[cur.label], dates, v, (n) => (w ? num(n) : hms(n)), w ? ' W' : '')} tip={(i) => [short(dates[i]), w ? `${num(v[i])} W` : hms(v[i])]} />}
+          <p class="cap2">{tl.length} {tl.length === 1 ? 'record' : 'records'} set so far. Each point is a new best on the day it happened.</p>
+        </section>
+        {lo && <section class="card"><div class="kv">
+          <div><span class="num">{num((lo.distance_m ?? 0) / 1000, 1)}<small> km</small></span><span class="lab">Longest run</span></div>
+          <div><span class="num">{num(lo.elev_gain_m)}<small> m</small></span><span class="lab">Climb on it</span></div>
+          {cl && <><div><span class="num">{num(cl.elev_gain_m)}<small> m</small></span><span class="lab">Biggest climb</span></div><div><span class="num">{num((cl.distance_m ?? 0) / 1000, 1)}<small> km</small></span><span class="lab">Distance of it</span></div></>}</div>
+          <p class="cap2">Longest: {short(lo.date)}.{cl && <> Biggest climb: {short(cl.date)}.</>} <a href={`#/activities/${lo.id}`}>Open longest run</a></p></section>}
+      </div>
+    </div></>}
   </>
 }
 
