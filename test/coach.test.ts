@@ -5,7 +5,7 @@ import { resetJwksCache } from '../src/worker/access.js'
 import { LocalStore } from '../sync/store.js'
 import { recompute } from '../sync/recompute.js'
 import { TOOLS, callTool } from '../src/tools.js'
-import { MAX_ROUNDS, briefing, chat, explain } from '../src/coach.js'
+import { MAX_ROUNDS, REGEN_LIMIT, briefing, chat, dailySummary, explain } from '../src/coach.js'
 
 const TEAM = 'team.example.cloudflareaccess.com', AUD = 'aud-123', NOW = Date.parse('2030-05-31T12:00:00Z')
 const kp = await generateKeyPair(), jwk = { ...(await exportJWK(kp.publicKey)), kid: 'k1' }
@@ -63,6 +63,13 @@ describe('tool registry', () => {
   it('reads real numbers and rejects bad input', async () => {
     const m = await mk(), o: any = await callTool(m.db, 'get_overview', {}, NOW)
     expect(o.status.label).toBeTruthy(); expect(o.data_age_days).toBe(0)
+    expect(o.garmin_key).toMatchObject({ expires_on: null, days_left: null }); expect(o).toHaveProperty('last_sync_ok', null)
+    const k: any = await callTool(m.db, 'get_overview', {}, NOW, { GARMIN_KEY_EXPIRES: '2030-06-20' })
+    expect(k.garmin_key).toMatchObject({ expires_on: '2030-06-20', days_left: 20, banner: true })
+    const c: any = await callTool(m.db, 'get_correlations', {}, NOW)
+    expect(c).toMatchObject({ available: true, tested: 5, min_n: 30 }); expect(c.pairs.length).toBe(5)
+    expect(c.pairs.find((p: any) => p.x === 'sleep_total_s' && p.y === 'hrv')).toMatchObject({ status: 'not_enough_data', n: 0 })
+    expect((await callTool(m.db, 'get_correlations', { x: 'load' }, NOW) as any).pairs.length).toBe(2)
     const s: any = await callTool(m.db, 'get_series', { keys: ['ctl'], from: d(9), to: d(0) }, NOW)
     expect(s.series.ctl.length).toBe(10)
     const p: any = await callTool(m.db, 'project_load', { days: 7, planned: [{ date: d(-1), load: 0 }] }, NOW)
@@ -188,5 +195,33 @@ describe('routes', () => {
     expect(await post({ ...body, template: 'Form is -7.' })).toEqual({ text: 'Form is -7.', source: 'template' }); expect(sent.length).toBe(n)
     expect((await api(m, '/api/explain', 'POST', { metric: 'x' })).status).toBe(400)
     expect(await explain({ db: m.db, env: m.env, fetch: fakeFetch, now: NOW, metric: 'a', date: d(0), template: 't', regenerate: false })).toMatchObject({ source: 'template' })
+  })
+  it('explain: at most REGEN_LIMIT regenerates per metric per day, then the cached text with limited:true', async () => {
+    const m = await mk(), body = { metric: 'status:today', date: d(0), template: 'Form is -5.' }
+    replies = Array.from({ length: 10 }, (_, i) => say(`Text ${i}.`))
+    const post = async (b: object) => (await (await api(m, '/api/explain', 'POST', b)).json()) as any
+    await post(body)
+    for (let i = 0; i < REGEN_LIMIT; i++) expect((await post({ ...body, regenerate: true })).source).toBe('llm')
+    const n = sent.length, r = await post({ ...body, regenerate: true })
+    expect(r).toEqual({ text: `Text ${REGEN_LIMIT}.`, source: 'cache', limited: true }); expect(sent.length).toBe(n)
+    expect((await post({ ...body, metric: 'other', regenerate: true })).source).toBe('llm') // per metric
+    expect(await post(body)).toEqual({ text: `Text ${REGEN_LIMIT}.`, source: 'cache' }) // plain reads are never limited
+  })
+  it('daily summary: one assistant message per day, off without the flag or key, respects the cap', async () => {
+    const msgs = async (m: Awaited<ReturnType<typeof mk>>) => ((await (await api(m, '/api/coach/messages')).json()) as any).messages
+    const m = await mk({ ANTHROPIC_API_KEY: 'k', COACH_DAILY: '1' }), go = (mm = m, now = NOW) => dailySummary({ db: mm.db, env: mm.env, fetch: fakeFetch, now })
+    replies = [say('Good morning. Recovery looks fine.')]
+    expect(await go(m, NOW - 8 * 36e5)).toBe('early'); expect(sent.length).toBe(0)
+    expect(await go()).toBe('written'); expect(await go()).toBe('exists'); expect(sent.length).toBe(1)
+    expect(sent[0].body.messages[0].content).toContain('"readiness"')
+    expect(await msgs(m)).toEqual([{ role: 'assistant', content: 'Good morning. Recovery looks fine.' }])
+    replies = [say('Next day.')]
+    expect(await go(m, NOW + 864e5)).toBe('written')
+    const off = await mk({ ANTHROPIC_API_KEY: 'k' }); expect(await go(off)).toBe('off')
+    const nokey = await mk({ COACH_DAILY: '1' }); expect(await go(nokey)).toBe('off')
+    const capped = await mk({ ANTHROPIC_API_KEY: 'k', COACH_DAILY: '1' })
+    await capped.l.batch([["INSERT INTO coach_usage (month, usd) VALUES ('2030-05', 99)"]])
+    expect(await go(capped)).toBe('capped'); expect(await msgs(capped)).toEqual([])
+    replies = []; expect(await go(await mk({ ANTHROPIC_API_KEY: 'k', COACH_DAILY: '1' }))).toBe('error') // API failure writes nothing
   })
 })

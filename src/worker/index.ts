@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
 import { Fetch, verifyAccess } from './access.js'
 import { metricRoutes } from './api.js'
-import { coachRoutes } from '../coach.js'
+import { coachRoutes, dailySummary } from '../coach.js'
+import { daysLeft } from '../queries.js'
 
 export interface DB {
   prepare(sql: string): { bind(...a: unknown[]): { all<T>(): Promise<{ results: T[] }>; run(): Promise<unknown> } }
@@ -13,14 +14,13 @@ export type Env = {
   ACCESS_TEAM_DOMAIN: string; ACCESS_AUD: string
   GITHUB_REPO: string; GITHUB_REF?: string; GITHUB_DISPATCH_TOKEN: string
   GARMIN_KEY_EXPIRES?: string; PAT_EXPIRES?: string
-  ANTHROPIC_API_KEY?: string; COACH_MODEL?: string; COACH_MONTHLY_USD_CAP?: string // secret, vars; no key = coach off
+  ANTHROPIC_API_KEY?: string; COACH_MODEL?: string; COACH_MONTHLY_USD_CAP?: string; COACH_DAILY?: string // secret, vars; no key = coach off
 }
 type Deps = { fetch: Fetch; now: () => number }
 
 const TABLES = ['activities', 'activity_steps', 'daily_summary', 'sleep', 'hrv_daily', 'body_battery', 'stress', 'steps', 'hr_zones', 'goals']
 const WORKFLOW = 'sync.yml'
 const RATE_MS = 120e3
-const BANNER_DAYS = 30
 
 const gh = (env: Env, path: string, method: string, f: Fetch, body?: unknown) =>
   f(`https://api.github.com/repos/${env.GITHUB_REPO}/actions/workflows/${WORKFLOW}${path}`, {
@@ -28,12 +28,7 @@ const gh = (env: Env, path: string, method: string, f: Fetch, body?: unknown) =>
     headers: { authorization: `Bearer ${env.GITHUB_DISPATCH_TOKEN}`, accept: 'application/vnd.github+json', 'user-agent': 'coachi', 'x-github-api-version': '2022-11-28' },
   })
 
-export function daysLeft(date: string | undefined, now: number) {
-  const t = date ? Date.parse(date) : NaN
-  const expires_on = Number.isNaN(t) ? null : date!
-  const days_left = expires_on ? Math.ceil((t - now) / 864e5) : null
-  return { expires_on, days_left, banner: days_left !== null && days_left <= BANNER_DAYS }
-}
+export { daysLeft }
 
 async function state(env: Env) {
   const { results } = await env.DB.prepare('SELECT key, value FROM sync_state').bind().all<{ key: string; value: string }>()
@@ -99,5 +94,5 @@ export async function watchdog(env: Env, f: Fetch = (...a) => fetch(...a)) {
 
 export default {
   fetch: (req: Request, env: Env, ctx: unknown) => createApp().fetch(req, env, ctx as never),
-  scheduled: (_e: unknown, env: Env, ctx: { waitUntil(p: Promise<unknown>): void }) => ctx.waitUntil(watchdog(env)),
+  scheduled: (_e: unknown, env: Env, ctx: { waitUntil(p: Promise<unknown>): void }) => ctx.waitUntil(Promise.all([watchdog(env), dailySummary({ db: env.DB, env, fetch: (...a) => fetch(...a), now: Date.now() })])),
 }

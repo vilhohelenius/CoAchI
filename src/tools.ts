@@ -2,11 +2,13 @@
 // Reads reuse src/queries.ts. Writes: notes, planned load, RPE, goals. Every result carries as_of plus n or confidence so the model can hedge.
 import type { DB } from './worker/index.js'
 import { addDays, diffDays, weekStart } from './metrics/dates.js'
+import { PAIRS, report } from './metrics/correlations.js'
 import { project, sportOf } from './metrics/load.js'
-import { LIST_COLS, SPORT_SQL, activityOf, fitnessEstimates, goalsView, q, shoes, sportWhere, steps, today } from './queries.js'
+import { LIST_COLS, SPORT_SQL, activityOf, fitnessEstimates, daysLeft, goalsView, q, shoes, sportWhere, steps, today } from './queries.js'
 
 type Args = Record<string, any>
-export type Tool = { name: string; description: string; input_schema: object; write?: boolean; handler: (db: DB, a: Args, now: number) => Promise<object> }
+export type ToolEnv = { GARMIN_KEY_EXPIRES?: string }
+export type Tool = { name: string; description: string; input_schema: object; write?: boolean; handler: (db: DB, a: Args, now: number, env?: ToolEnv) => Promise<object> }
 
 const iso = (now: number) => new Date(now).toISOString().slice(0, 10)
 const isDate = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d\d-\d\d$/.test(v) && !Number.isNaN(Date.parse(v))
@@ -44,13 +46,14 @@ const SERIES: Record<string, [string, 'avg' | 'sum']> = {
 const r2 = (x: number) => Math.round(x * 100) / 100
 
 export const TOOLS: Tool[] = [
-  { name: 'get_overview', description: "Today's snapshot: training status label, CTL/ATL/TSB/ACWR/ramp, readiness with components and confidence, HRV and sleep stats, last night's sleep, last activity, this week's totals. Start here.",
+  { name: 'get_overview', description: "Today's snapshot: training status label, CTL/ATL/TSB/ACWR/ramp, readiness with components and confidence, HRV and sleep stats, last night's sleep, last activity, this week's totals. Also key expiry (garmin_key days_left) and data freshness (data_age_days, last_sync_ok). Start here.",
     input_schema: obj({}),
-    async handler(db, _a, now) {
-      const t: any = await today(db, now)
-      if (!t.data_date) return { n: 0, confidence: 'none', note: 'no data synced yet' }
+    async handler(db, _a, now, env) {
+      const t: any = await today(db, now), garmin_key = daysLeft(env?.GARMIN_KEY_EXPIRES, now)
+      const [ok] = await q<{ value: string }>(db, "SELECT value FROM sync_state WHERE key='last_sync_ok'")
+      if (!t.data_date) return { n: 0, confidence: 'none', note: 'no data synced yet', last_sync_ok: ok?.value ?? null, garmin_key }
       const { goals: _g, this_week: w, ...rest } = t
-      return { ...rest, this_week: { ...w, days: undefined }, data_age_days: diffDays(t.data_date, iso(now)), confidence: t.readiness?.confidence ?? 'unknown', n: 1 }
+      return { ...rest, this_week: { ...w, days: undefined }, data_age_days: diffDays(t.data_date, iso(now)), last_sync_ok: ok?.value ?? null, garmin_key, confidence: t.readiness?.confidence ?? 'unknown', n: 1 }
     } },
   { name: 'get_activities', description: 'Activity summaries (distance, duration, avg HR, load, RPE), newest first.',
     input_schema: obj({ from: D, to: D, type: { type: 'string', enum: ['run', 'bike', 'ski', 'strength'] }, limit: { type: 'integer', minimum: 1, maximum: 30 } }),
@@ -99,9 +102,14 @@ export const TOOLS: Tool[] = [
   { name: 'get_vo2_estimate', description: 'Running VO2 estimate (n steady runs, weekly history) and critical speed.',
     input_schema: obj({}),
     async handler(db, _a, now) { const f: any = await fitnessEstimates(db, now, undefined); return f.available ? { data_date: f.data_date, vo2: f.vo2, critical_speed: f.cs, n: f.vo2?.n ?? 0, confidence: (f.vo2?.n ?? 0) >= 3 ? 'ok' : 'low' } : { n: 0, confidence: 'none' } } },
-  { name: 'get_correlations', description: 'The vetted correlation report. Not built yet, so this returns available:false.',
+  { name: 'get_correlations', description: `The vetted correlation report: ${PAIRS.length} fixed pairs (day-level, last 180 days), Pearson r with 95% CI, n and a status. Quote only this, never compute your own. x/y optionally narrow to pairs using those series.`,
     input_schema: obj({ x: { type: 'string' }, y: { type: 'string' } }),
-    async handler() { return { available: false, n: 0, confidence: 'none' } } },
+    async handler(db, a, now) {
+      const to = iso(now), from = addDays(to, -179), series: Record<string, { date: string; v: number }[]> = {}
+      for (const k of new Set(PAIRS.flatMap((p) => [p.x, p.y]))) series[k] = (await q<{ date: string; v: number | null }>(db, SERIES[k][0], from, to)).filter((r): r is { date: string; v: number } => r.v != null)
+      const rep = report(series, [a.x, a.y].filter((k) => typeof k === 'string')), n = Math.max(0, ...rep.pairs.map((p) => p.n))
+      return { available: true, window: { from, to }, ...rep, n, confidence: rep.pairs.some((p) => p.status !== 'not_enough_data') ? 'ok' : 'low' }
+    } },
   { name: 'get_shoes', description: 'Shoes with mileage and retire alerts.', input_schema: obj({}),
     async handler(db, _a, now) { const s: any = await shoes(db, now); return { shoes: s.shoes, n: s.shoes.length } } },
   { name: 'get_notes', description: 'Active coach notes (injury, illness, schedule, preference). Expired notes are left out.', input_schema: obj({}),
@@ -162,9 +170,9 @@ export const TOOLS: Tool[] = [
 ]
 
 /** Runs one tool. Unknown names and thrown errors come back as {error} so the model can recover; details stay out of the answer. */
-export async function callTool(db: DB, name: string, args: unknown, now: number) {
+export async function callTool(db: DB, name: string, args: unknown, now: number, env?: ToolEnv) {
   const t = TOOLS.find((x) => x.name === name)
   if (!t) return bad(`unknown tool ${name}`)
-  try { return { as_of: new Date(now).toISOString(), ...(await t.handler(db, args && typeof args === 'object' ? (args as Args) : {}, now)) } }
+  try { return { as_of: new Date(now).toISOString(), ...(await t.handler(db, args && typeof args === 'object' ? (args as Args) : {}, now, env)) } }
   catch { return bad('tool failed') }
 }

@@ -201,7 +201,7 @@ Tool results carry `as_of` and `n`/`confidence` so the model can hedge.
 
 **Spend cap:** before each call check `coach_usage` for the month >= `COACH_MONTHLY_USD_CAP` (default 5) -> respond "cap reached" without calling API. After each call add cost from `usage` tokens x price constants (in code). Also set a workspace spend limit in the Anthropic console (belt and braces).
 
-**Clean disable:** coach = `coach.ts` + `/api/coach/*` + web `Coach` page + `@anthropic-ai/sdk`. Secret `ANTHROPIC_API_KEY` absent -> `/api/config.coach_enabled=false`, UI hides Coach tab, `/api/coach/*` return 501. Removal = delete those three files/folder + dependency. Tools, notes, MCP, dashboard are independent of it (they import `tools.ts`, not `coach.ts`).
+**Clean disable:** coach = `coach.ts` + `/api/coach/*` + web `Coach` page (plain `fetch` to the Messages API, no SDK). Secret `ANTHROPIC_API_KEY` absent -> `/api/config.coach_enabled=false`, UI hides Coach tab, `/api/coach/*` return 501. Removal = delete those three files/folder. Tools, notes, MCP, dashboard are independent of it (they import `tools.ts`, not `coach.ts`).
 
 ## 8. MCP server (`coachi-mcp` Worker) and auth (decided: Cloudflare Access SSO)
 
@@ -274,7 +274,7 @@ Open:
 - Fits: Hono routing; reading precomputed rows (`load_daily`, `metric_daily`) and `JSON.stringify` of ~2,600 daily rows (~2-3 ms); mileage comparison (SQL `GROUP BY date`, cumulate a few thousand rows <1 ms); 42-day projection; heatmap and streams passthrough (R2 body/gzip streamed, polylines returned as stored strings, not decoded); D1 and R2 waits are I/O, not CPU.
 - Rule that keeps it fitting: **all heavy work (CTL/ATL history, correlations, VO2, predictions, readiness, briefing JSON) is computed in the Action and stored**; the Worker only reads. Correlation report is a stored row.
 - **Risk 1, Access JWT verify:** RS256 verify via WebCrypto per request; cache the JWKS and the verified-token result in isolate memory for the token's life. Measure.
-- **Risk 2, coach chat:** Claude API wait time is not CPU, but streaming SSE relaying, JSON parsing of tool rounds (up to 6) and Anthropic SDK overhead may reach ~5-15 ms. Mitigations: skip the SDK (plain `fetch`), prefer non-streamed responses if streaming costs CPU, keep tool outputs small, read the precomputed briefing row. If still over, coach moves to the Action-triggered path or the project takes Workers Paid; this is the single most likely reason to pay $5.
+- **Risk 2, coach chat:** Claude API wait time is not CPU, but streaming SSE relaying, JSON parsing of tool rounds (up to 6) may reach ~5-15 ms. Mitigations: plain `fetch` (no SDK), prefer non-streamed responses if streaming costs CPU, keep tool outputs small, read the precomputed briefing row. If still over, coach moves to the Action-triggered path or the project takes Workers Paid; this is the single most likely reason to pay $5.
 - **Risk 3, D1 query count:** free allows 50 queries per invocation; coach loop with 6 rounds must use `db.batch()` and stay under ~30 queries.
 - **Risk 4, MCP Worker OAuth:** the OAuth library does token hashing and KV I/O; each MCP request may take several ms. Measure; KV free allows 1,000 writes/day (enough for one user).
 - **Not done in the Worker (would break the limit):** FIT decoding, backfill, metric recompute, correlation computation.

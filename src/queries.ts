@@ -124,3 +124,11 @@ export async function activityOf(db: DB, id: number) {
   const [a] = Number.isInteger(id) ? await q<any>(db, `SELECT ${LIST_COLS}, moving_s, max_hr, avg_cadence, avg_power, norm_power, aero_te, anaero_te, load_source, rpe, feel, hr_z1_s, hr_z2_s, hr_z3_s, hr_z4_s, hr_z5_s, temp_c, avg_stride_m, avg_vert_osc_mm, avg_vert_ratio, avg_gct_ms, avg_gct_balance, shoe_id FROM activities WHERE id=?`, id) : []
   return [a, a ? await q(db, 'SELECT lap_idx, step_type, set_no, rep_no, duration_s, distance_m, avg_speed_mps, avg_hr, max_hr, avg_power, avg_cadence, ascent_m, avg_stride_m, avg_vert_osc_mm, avg_vert_ratio, avg_gct_ms, avg_gct_balance FROM activity_steps WHERE activity_id=? ORDER BY lap_idx', id) : []] as const
 }
+
+const BANNER_DAYS = 30
+export function daysLeft(date: string | undefined, now: number) {
+  const t = date ? Date.parse(date) : NaN
+  const expires_on = Number.isNaN(t) ? null : date!
+  const days_left = expires_on ? Math.ceil((t - now) / 864e5) : null
+  return { expires_on, days_left, banner: days_left !== null && days_left <= BANNER_DAYS }
+}

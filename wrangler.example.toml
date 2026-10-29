@@ -25,6 +25,7 @@ PAT_EXPIRES = "YYYY-MM-DD"
 # Secret, set with wrangler secret put: GITHUB_DISPATCH_TOKEN
 # Optional coach: secret ANTHROPIC_API_KEY (absent = coach off), vars COACH_MODEL (default claude-haiku-4-5-20251001), COACH_MONTHLY_USD_CAP (default 5)
 # COACH_MONTHLY_USD_CAP = "5"
+# COACH_DAILY = "1"   # one proactive morning summary in the Coach chat per day; written by the cron above on its first run after 05:00 UTC
 
 [assets]
 directory = "web/dist"

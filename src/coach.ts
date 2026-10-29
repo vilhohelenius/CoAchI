@@ -15,6 +15,7 @@ type Block = { type: string; text?: string; id?: string; name?: string; input?: 
 type Msg = { role: 'user' | 'assistant'; content: string | unknown[] }
 
 export const DEFAULT_MODEL = 'claude-haiku-4-5-20251001'
+export const REGEN_LIMIT = 5 // "Explain this" regenerations per metric per day
 export const MAX_ROUNDS = 6, MAX_TOKENS = 1000, HISTORY = 12
 // USD per million tokens for the default Haiku-class model. ponytail: one price table, a different COACH_MODEL needs these edited.
 export const PRICE = { input: 1, output: 5, cache_write: 1.25, cache_read: 0.1 }
@@ -115,7 +116,7 @@ export async function chat(o: { db: DB; env: Env; fetch: Fetch; now: number; mes
     const uses = res.content.filter((b) => b.type === 'tool_use')
     if (res.stop_reason !== 'tool_use' || !uses.length) break
     const results: unknown[] = []
-    for (const u of uses) { await emit('tool', { name: u.name }); results.push({ type: 'tool_result', tool_use_id: u.id, content: JSON.stringify(await callTool(db, u.name!, u.input, now)) }) }
+    for (const u of uses) { await emit('tool', { name: u.name }); results.push({ type: 'tool_result', tool_use_id: u.id, content: JSON.stringify(await callTool(db, u.name!, u.input, now, env)) }) }
     messages.push({ role: 'assistant', content: res.content }, { role: 'user', content: results })
     if (round === MAX_ROUNDS) { const t = '\n(Stopped after the maximum number of tool rounds.)'; answer += t; await emit('text', { text: t }) }
   }
@@ -132,6 +133,11 @@ export async function explain(o: { db: DB; env: Env; fetch: Fetch; now: number; 
   const input_hash = await hash(o.template), [c] = await q<any>(db, 'SELECT input_hash, text FROM explain_cache WHERE metric=? AND date=?', o.metric, o.date)
   if (c && c.input_hash === input_hash && !o.regenerate) return { text: c.text, source: 'cache' }
   if (await capReached(db, env, now)) return fallback
+  if (o.regenerate) {
+    const [g] = await q<any>(db, 'SELECT n FROM explain_regen WHERE metric=? AND day=?', o.metric, iso(now))
+    if ((g?.n ?? 0) >= REGEN_LIMIT) return { ...(c ? { text: c.text, source: 'cache' } : fallback), limited: true }
+    await db.prepare('INSERT INTO explain_regen (metric, day, n) VALUES (?, ?, 1) ON CONFLICT(metric, day) DO UPDATE SET n=n+1').bind(o.metric, iso(now)).run()
+  }
   try {
     const res = await claude(env, o.fetch, { max_tokens: 200, system: EXPLAIN_SYSTEM, messages: [{ role: 'user', content: o.template }] })
     await addUsage(db, now, res.usage)
@@ -140,6 +146,26 @@ export async function explain(o: { db: DB; env: Env; fetch: Fetch; now: number; 
     await db.prepare('INSERT INTO explain_cache (metric, date, input_hash, text, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(metric, date) DO UPDATE SET input_hash=excluded.input_hash, text=excluded.text, created_at=excluded.created_at').bind(o.metric, o.date, input_hash, text, now).run()
     return { text, source: 'llm' }
   } catch { return fallback }
+}
+
+// ---- COACH_DAILY=1: one proactive summary per day, written by the cron `scheduled` handler as a normal assistant message ----
+const DAILY_SYSTEM = `You write the coach's short morning message for one runner from the briefing JSON. At most 90 words, plain text, no headings. Use only numbers in the briefing. Cover how recovery looks, what the last days and the week look like, and one suggestion for today. Hedge when data is old or confidence is low. No medical advice.`
+export async function dailySummary(o: { db: DB; env: Env; fetch: Fetch; now: number }) {
+  const { db, env, now } = o, date = iso(now)
+  if (!env.ANTHROPIC_API_KEY || env.COACH_DAILY !== '1') return 'off'
+  if (new Date(now).getUTCHours() < 5) return 'early' // ponytail: fixed 05:00 UTC, so the 06:00 run of the existing 6-hourly cron writes it after the morning sync
+  const [s] = await q<any>(db, "SELECT value FROM sync_state WHERE key='coach_daily'")
+  if (s?.value === date) return 'exists'
+  if (await capReached(db, env, now)) return 'capped'
+  try {
+    const res = await claude(env, o.fetch, { max_tokens: 300, system: DAILY_SYSTEM, messages: [{ role: 'user', content: JSON.stringify(await briefing(db, now)) }] })
+    await addUsage(db, now, res.usage)
+    const text = res.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
+    if (!text) return 'empty'
+    await db.prepare('INSERT INTO coach_messages (created_at, role, content) VALUES (?, ?, ?)').bind(now, 'assistant', text).run()
+    await db.prepare("INSERT INTO sync_state (key, value, updated_at) VALUES ('coach_daily', ?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at").bind(date, now).run()
+    return 'written'
+  } catch { return 'error' }
 }
 
 export function coachRoutes(app: Hono<{ Bindings: Env }>, deps: Deps) {
