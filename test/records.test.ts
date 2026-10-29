@@ -22,9 +22,9 @@ describe('best efforts', () => {
     for (let i = 600; i < 1200; i++) s.dist[i]! += 800 // 800 m teleport at 600 s
     expect(bestTime(s.t, s.dist, 1000)).toBeCloseTo(333.3333, 3) // the jump does not shorten any window
   })
-  it('counts a timer pause as no time', () => {
+  it('keeps a short stop (lights) in the time, as Strava does', () => {
     const s = run(800, () => 4), t = s.t.map((x) => (x! >= 400 ? x! + 20 : x)) // 20 s stop at 400 s, almost no distance
-    expect(bestTime(t, s.dist, 1700)).toBeCloseTo(425, 6)
+    expect(bestTime(t, s.dist, 1700)).toBeCloseTo(445.1, 1) // time scaled from 1690 m to 1700 m
   })
   it('keeps a long stop (recovery between reps) in the time', () => {
     const s = run(800, () => 4), t = s.t.map((x) => (x! >= 400 ? x! + 120 : x))

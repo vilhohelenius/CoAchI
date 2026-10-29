@@ -6,8 +6,7 @@ export type S = { t: N[]; dist: N[]; pwr: N[]; hr: N[]; alt: N[] }
 
 export const DISTANCES = [['1k', 1000], ['1mi', 1609.344], ['5k', 5000], ['10k', 10000], ['hm', 21097.5]] as const
 export const DURATIONS = [180, 360, 720, 1200]   // seconds, for critical speed
-const MAX_GAP = 60     // s between records before a window is cut, unless the gap is a stand-still (a stop stays in the time). Older files use smart recording, so 10 to 30 s steps are normal
-const MAX_PAUSE = 30  // s, longest stop the timer clock forgives (lights). A longer stand, such as a recovery between reps, stays in the time
+const MAX_GAP = 60     // s between records before a window is cut, unless the gap is a stand-still (a stop stays in the time, as on Strava). Older files use smart recording, so 10 to 30 s steps are normal
 const TOL_M = 10      // m a distance effort may fall short of its label
 const MAX_STEP = 25    // m/s between two records, faster is a GPS jump (a 13 m blip in one second is normal noise)
 const MAX_SPEED = 9    // m/s over a whole effort, faster is not a runner
@@ -28,20 +27,9 @@ export function segments(t: N[], d: N[]): [number, number][] {
   return out.filter(([x, y]) => y > x)
 }
 
-/** Timer clock: a gap of 4 to 30 s that moved under 1 m/s on average is a paused timer (a stop at the lights) and counts as 1 s, as Garmin does. Longer stops stay in the time. Gaps that moved at running speed are sparse recording and stay. */
-export function timerClock(t: N[], d: N[]): N[] {
-  let off = 0
-  return t.map((x, i) => {
-    if (x == null || d[i] == null) return x
-    const p = i && t[i - 1] != null && d[i - 1] != null ? i - 1 : -1
-    if (p >= 0) { const dt = x - t[p]!, dd = d[i]! - d[p]!; if (dt > 3 && dt <= MAX_PAUSE && dd >= 0 && dd < dt) off += dt - 1 }
-    return x - off
-  })
-}
-
 /** Fastest time over exactly `D` metres, interpolated between records. Null when no continuous stretch is long enough. */
 export function bestTime(t0: N[], d: N[], D0: number): number | null {
-  const t = timerClock(t0, d), D = D0 - TOL_M // a watch that logged 9999 m for a 10 km race still counts, time scaled to the full distance
+  const t = t0, D = D0 - TOL_M // a watch that logged 9999 m for a 10 km race still counts, time scaled to the full distance
   let best = Infinity
   for (const [a, b] of segments(t, d)) {
     let i = a
@@ -58,7 +46,7 @@ export function bestTime(t0: N[], d: N[], D0: number): number | null {
 
 /** Furthest distance covered in exactly `T` seconds. */
 export function bestDistance(t0: N[], d: N[], T: number): number | null {
-  const t = timerClock(t0, d)
+  const t = t0
   let best = 0
   for (const [a, b] of segments(t, d)) {
     let i = a
