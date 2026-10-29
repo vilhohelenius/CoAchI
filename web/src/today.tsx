@@ -49,7 +49,7 @@ function StatusCard({ d, load }: { d: Today; load?: LoadResp }) {
 /** Route outline on the map background, or a calm dashed stamp when the activity has no GPS. */
 function RouteStamp({ pts }: { pts?: [number, number][] | null }) {
   const r = pts && routePath(pts, 300, 150, 18)
-  return <svg class="map" viewBox="0 0 300 150" preserveAspectRatio="xMidYMid slice" role="img" aria-label={r ? 'Route of the latest activity' : 'No route for this activity'}>
+  return <svg class="map" viewBox="0 0 300 150" preserveAspectRatio="xMidYMid meet" role="img" aria-label={r ? 'Route of the latest activity' : 'No route for this activity'}>
     <rect width="300" height="150" fill="var(--m-bg)" />
     {r ? <><path d={r.d} fill="none" stroke="var(--route-case)" stroke-width="7" stroke-linejoin="round" stroke-linecap="round" /><path d={r.d} fill="none" stroke="var(--route)" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" /></>
       : <path d="M30 100C70 40 110 115 150 70S230 30 270 62" fill="none" stroke="var(--mute)" stroke-width="3" stroke-dasharray="3 9" stroke-linecap="round" opacity=".6" />}
@@ -96,7 +96,7 @@ export function ReadinessCard({ d }: { d: Today }) {
   const on = r.label === 'high' ? 3 : r.label === 'moderate' ? 2 : r.label === 'low' ? 1 : 0, avail = r.components.filter((c) => c.available)
   return <section class="card">
     <p class="k"><a class="cl" href="#/insights/recovery">Readiness</a>{r.capped && <Pill tone="warn">Held down</Pill>}</p>
-    <div class="rn"><span class="sc">{Math.round(r.score)}</span><span class="st">{readinessWord(r.label)}<small>out of 100</small></span></div>
+    <div class="rn"><span class="sc">{Math.round(r.score)}</span><span class={`st l${on}`}>{readinessWord(r.label)}<small>out of 100</small></span></div>
     <div class="scale" role="img" aria-label={`Readiness ${Math.round(r.score)} of 100, ${r.label}`}><i /><i /><i /><i /><span class="mk" style={`left:${r.score}%`} /></div>
     <div class="sl">{SEGS.map((b, i) => <span class={i === on ? 'on' : ''}>{b}</span>)}</div>
     <p class="why">{r.confidence === 'low' ? `Only ${avail.length} of ${r.components.length} signals were available, so treat this as a rough guide. ` : ''}{r.drivers.length ? `Mostly driven by ${r.drivers.map((k) => (r.components.find((c) => c.key === k)?.label ?? k)).join(' and ')}.` : ''}</p>
