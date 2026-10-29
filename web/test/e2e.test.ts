@@ -39,6 +39,14 @@ describe('frontend end to end', () => {
       expect(root.textContent, r).not.toMatch(/NaN|undefined/)
     }
   })
+  it('opening an activity from the list shows its detail, and Back returns to the list', async () => {
+    await go('#/activities')
+    expect(root.querySelector('.arow')).toBeTruthy(); expect(root.querySelector('.glance')).toBeNull()
+    await go('#/activities/100')
+    await vi.waitFor(() => expect(root.querySelector('.glance')).toBeTruthy())
+    await go('#/activities')
+    await vi.waitFor(() => expect(root.querySelector('.arow')).toBeTruthy())
+  })
   it('phone drawer lists every view and closes on Escape, theme toggle sets data-mode', async () => {
     await settle()
     const more = root.querySelector('.tabs button') as HTMLButtonElement
