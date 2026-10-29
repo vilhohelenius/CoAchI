@@ -25,14 +25,16 @@ export function metricRoutes(app: App, now: () => number) {
     const [hrv] = await q<any>(db, 'SELECT date, last_night_avg, status FROM hrv_daily WHERE last_night_avg IS NOT NULL ORDER BY date DESC LIMIT 1')
     const [wk] = await q(db, `SELECT COUNT(*) sessions, SUM(distance_m) distance_m, SUM(duration_s) duration_s, SUM(load) load,
       SUM(CASE WHEN type LIKE '%running%' THEN distance_m ELSE 0 END) run_distance_m FROM activities WHERE start_local >= ?`, weekStart(l.date))
+    const ws = weekStart(l.date), byDay = Object.fromEntries((await q<any>(db, `SELECT substr(start_local,1,10) d, SUM(distance_m) m, SUM(duration_s) s FROM activities WHERE start_local >= ? GROUP BY d`, ws)).map((r) => [r.d, r]))
+    const days = Array.from({ length: 7 }, (_, i) => { const d = addDays(ws, i), r = byDay[d]; return { date: d, km: r ? Math.round(r.m / 100) / 10 : 0, active_min: r ? Math.round(r.s / 60) : 0 } })
     return c.json({
       as_of: asOf(), data_date: l.date,
-      status: { label: l.status, ctl: l.ctl, atl: l.atl, tsb: l.tsb, acwr: l.acwr, ramp7: l.ramp7, warming_up: !!l.warming_up },
+      status: { label: l.status, reason: m.status?.reason ?? null, ctl: l.ctl, atl: l.atl, tsb: l.tsb, acwr: l.acwr, ramp7: l.ramp7, warming_up: !!l.warming_up },
       readiness: m.readiness == null ? null : { score: rows.find((r) => r.key === 'readiness')!.value, ...m.readiness },
       last_activity: act ?? null, sleep: sleep ?? null,
       tiles: { steps: day?.steps ?? null, step_goal: day?.step_goal ?? null, rhr: day?.rhr ?? null, stress_avg: day?.stress_avg ?? null, body_battery_max: day?.bb_max ?? null,
         hrv_last_night: hrv?.last_night_avg ?? null, hrv_garmin_status: hrv?.status ?? null, hrv: m.hrv ?? null, recovery: m.recovery ?? null, sleep_stats: m.sleep ?? null },
-      this_week: { start: weekStart(l.date), ...wk }, goals: m.goals ?? null,
+      this_week: { start: ws, ...wk, days }, goals: m.goals ?? null,
     })
   })
 

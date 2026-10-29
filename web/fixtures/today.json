@@ -1,20 +1,233 @@
 {
-  "as_of": "2030-06-01T12:00:00.000Z", "data_date": "2030-06-01",
-  "status": { "label": "Productive", "ctl": 41.2, "atl": 48.9, "tsb": -7.7, "acwr": 1.12, "ramp7": 2.4, "warming_up": false },
-  "readiness": { "score": 68.4, "label": "moderate", "confidence": "ok", "capped": false, "n_components": 5, "drivers": ["sleep", "hrv"],
-    "components": [
-      { "key": "hrv", "label": "HRV vs your normal", "weight": 30, "available": true, "n": 58, "score": 74.1, "value": "z 0.2" },
-      { "key": "sleep", "label": "Sleep", "weight": 30, "available": true, "n": 14, "score": 82, "value": "7.5 h" },
-      { "key": "rhr", "label": "Resting heart rate", "weight": 20, "available": true, "n": 30, "score": 66, "value": "50 bpm" },
-      { "key": "load", "label": "Recent training load", "weight": 15, "available": true, "n": 28, "score": 55, "value": "ratio 1.12" },
-      { "key": "body_battery", "label": "Body battery", "weight": 5, "available": false, "n": 0, "score": null, "value": null } ] },
-  "last_activity": { "id": 1, "start_local": "2030-06-01 07:00:00", "type": "running", "name": "Morning run", "distance_m": 8000, "duration_s": 2700,
-    "avg_hr": 150, "elev_gain_m": 40, "load": 61.3, "load_source": "zones", "aero_te": 3.1, "rpe": null },
-  "sleep": { "date": "2030-06-01", "total_s": 27000, "deep_s": 4000, "light_s": 14000, "rem_s": 7000, "awake_s": 2000, "score": 82, "start_ts": 1893000000000, "end_ts": 1893027000000 },
-  "tiles": { "steps": 6400, "step_goal": 10000, "rhr": 50, "stress_avg": 27, "body_battery_max": 85, "hrv_last_night": 58, "hrv_garmin_status": "BALANCED",
-    "hrv": { "last": 58, "h7": 57.2, "base": 55.0, "low": 47.0, "high": 64.5, "z": 0.2, "z_last": 0.3, "status": "in_range", "n7": 7, "n_base": 58, "range_ok": true },
-    "recovery": { "rhr7": 50.4, "z_rhr": -0.3, "divergence": "normal", "balance": { "hrv": "in", "rhr": "in", "balanced": true }, "streak_days": 9 },
-    "sleep_stats": { "sd_min": 24.5, "n_nights7": 7, "social_jetlag_min": 35, "debt_h": 1.5, "n_debt": 14, "need_h": 8 } },
-  "this_week": { "start": "2030-05-27", "sessions": 4, "distance_m": 32000, "duration_s": 10800, "load": 240.5, "run_distance_m": 32000 },
-  "goals": "see GET /api/goals progress"
+ "as_of": "2030-06-01T12:00:00.000Z",
+ "data_date": "2030-06-01",
+ "status": {
+  "label": "Productive",
+  "ctl": 41.2,
+  "atl": 48.9,
+  "tsb": -7.7,
+  "acwr": 1.12,
+  "ramp7": 2.4,
+  "warming_up": false,
+  "reason": "Fitness is rising and fatigue is manageable."
+ },
+ "readiness": {
+  "score": 68.4,
+  "label": "moderate",
+  "confidence": "ok",
+  "capped": false,
+  "n_components": 5,
+  "drivers": [
+   "sleep",
+   "hrv"
+  ],
+  "components": [
+   {
+    "key": "hrv",
+    "label": "HRV vs your normal",
+    "weight": 30,
+    "available": true,
+    "n": 58,
+    "score": 74.1,
+    "value": "z 0.2"
+   },
+   {
+    "key": "sleep",
+    "label": "Sleep",
+    "weight": 30,
+    "available": true,
+    "n": 14,
+    "score": 82,
+    "value": "7.5 h"
+   },
+   {
+    "key": "rhr",
+    "label": "Resting heart rate",
+    "weight": 20,
+    "available": true,
+    "n": 30,
+    "score": 66,
+    "value": "50 bpm"
+   },
+   {
+    "key": "load",
+    "label": "Recent training load",
+    "weight": 15,
+    "available": true,
+    "n": 28,
+    "score": 55,
+    "value": "ratio 1.12"
+   },
+   {
+    "key": "body_battery",
+    "label": "Body battery",
+    "weight": 5,
+    "available": false,
+    "n": 0,
+    "score": null,
+    "value": null
+   }
+  ]
+ },
+ "last_activity": {
+  "id": 1,
+  "start_local": "2030-06-01 07:00:00",
+  "type": "running",
+  "name": "Morning run",
+  "distance_m": 8000,
+  "duration_s": 2700,
+  "avg_hr": 150,
+  "elev_gain_m": 40,
+  "load": 61.3,
+  "load_source": "zones",
+  "aero_te": 3.1,
+  "rpe": null
+ },
+ "sleep": {
+  "date": "2030-06-01",
+  "total_s": 27000,
+  "deep_s": 4000,
+  "light_s": 14000,
+  "rem_s": 7000,
+  "awake_s": 2000,
+  "score": 82,
+  "start_ts": 1893000000000,
+  "end_ts": 1893027000000
+ },
+ "tiles": {
+  "steps": 6400,
+  "step_goal": 10000,
+  "rhr": 50,
+  "stress_avg": 27,
+  "body_battery_max": 85,
+  "hrv_last_night": 58,
+  "hrv_garmin_status": "BALANCED",
+  "hrv": {
+   "last": 58,
+   "h7": 57.2,
+   "base": 55.0,
+   "low": 47.0,
+   "high": 64.5,
+   "z": 0.2,
+   "z_last": 0.3,
+   "status": "in_range",
+   "n7": 7,
+   "n_base": 58,
+   "range_ok": true
+  },
+  "recovery": {
+   "rhr7": 50.4,
+   "z_rhr": -0.3,
+   "divergence": "normal",
+   "balance": {
+    "hrv": "in",
+    "rhr": "in",
+    "balanced": true
+   },
+   "streak_days": 9
+  },
+  "sleep_stats": {
+   "sd_min": 24.5,
+   "n_nights7": 7,
+   "social_jetlag_min": 35,
+   "debt_h": 1.5,
+   "n_debt": 14,
+   "need_h": 8
+  }
+ },
+ "this_week": {
+  "start": "2030-05-27",
+  "sessions": 4,
+  "distance_m": 32000,
+  "duration_s": 10800,
+  "load": 240.5,
+  "run_distance_m": 32000,
+  "days": [
+   {
+    "date": "2030-05-27",
+    "km": 8.0,
+    "active_min": 45
+   },
+   {
+    "date": "2030-05-28",
+    "km": 0,
+    "active_min": 0
+   },
+   {
+    "date": "2030-05-29",
+    "km": 10.5,
+    "active_min": 58
+   },
+   {
+    "date": "2030-05-30",
+    "km": 0,
+    "active_min": 0
+   },
+   {
+    "date": "2030-05-31",
+    "km": 12.0,
+    "active_min": 66
+   },
+   {
+    "date": "2030-06-01",
+    "km": 0,
+    "active_min": 0
+   },
+   {
+    "date": "2030-06-02",
+    "km": 0,
+    "active_min": 0
+   }
+  ]
+ },
+ "goals": {
+  "year": {
+   "target_km": 2000,
+   "ytd_km": 800.2,
+   "expected_km": 832.9,
+   "diff_km": -32.7,
+   "status": "on_pace",
+   "projected_km": 1960.4,
+   "avg_week_km_8w": 52.1
+  },
+  "week": {
+   "band_lo": 50,
+   "band_hi": 60,
+   "week_start": "2030-05-27",
+   "km": 36.7,
+   "status": "ahead",
+   "previous": [
+    {
+     "week_start": "2030-05-20",
+     "km": 55.0,
+     "status": "in_band"
+    },
+    {
+     "week_start": "2030-05-13",
+     "km": 48.2,
+     "status": "below_band"
+    },
+    {
+     "week_start": "2030-05-06",
+     "km": 61.5,
+     "status": "above_band"
+    },
+    {
+     "week_start": "2030-04-29",
+     "km": 52.0,
+     "status": "in_band"
+    }
+   ]
+  },
+  "steps": {
+   "goal": 10000,
+   "today": 6400,
+   "streak_days": 4,
+   "today_pending": true,
+   "hit_30d": 21,
+   "avg_7d": 10400,
+   "avg_30d": 9800,
+   "status": "on_pace"
+  }
+ }
 }

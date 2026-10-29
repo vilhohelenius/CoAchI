@@ -1,25 +1,41 @@
 import { useApi } from './api'
 import { Carousel } from './carousel'
 import { DASH, STATUS_KEY, clock, day, dur, km, num, pace, paceWord, pct, readinessWord, sgn, sleepLabel, statusReason, stressLabel } from './fmt'
-import type { Goals, Today } from './types'
+import type { GoalProgress, LoadResp, Today } from './types'
+
+/** Loading skeleton, calm error card with retry, or the view. Every data page goes through this. */
+export function Page<T>({ title, st, retry, children }: { title: string; st: ReturnType<typeof useApi<T>>[0]; retry: () => void; children: (d: T) => preact.ComponentChildren }) {
+  return <>
+    <h1>{title}</h1>
+    {st.s === 'loading' ? <div aria-busy="true" aria-label="Loading"><section class="card sk" /></div> : st.s === 'error' ? <Err msg={st.msg} retry={retry} /> : children(st.data)}
+  </>
+}
 
 export function Err({ msg, retry }: { msg: string; retry: () => void }) {
   return <section class="card err" role="alert"><p class="k">Could not load</p><p class="t0">{msg}</p><button class="btn g" onClick={retry}>Try again</button></section>
 }
-const Pill = ({ tone = 'mute', children }: { tone?: string; children: preact.ComponentChildren }) => <span class={`pill ${tone}`}>{children}</span>
+export const Pill = ({ tone = 'mute', children }: { tone?: string; children: preact.ComponentChildren }) => <span class={`pill ${tone}`}>{children}</span>
 
-function StatusCard({ d }: { d: Today }) {
+export function StatusStrip({ days }: { days: LoadResp['days'] }) {
+  const last = days.slice(-28)
+  return <div style="margin-top:16px"><div class="strip" role="img" aria-label={`Training status over the last ${last.length} days, now ${last[last.length - 1].status ?? 'unknown'}`}>
+    {last.map((x) => <i class={x.warming_up || x.status === 'Not enough data' ? 'w' : ''} title={`${day(x.date, { day: 'numeric', month: 'short' })}: ${x.status ?? DASH}`} style={x.status && STATUS_KEY[x.status] ? `--c:var(--s-${STATUS_KEY[x.status]})` : ''} />)}
+  </div><span class="lab" style="margin-top:6px">Status over the last {last.length} days. Faded days had too little history.</span></div>
+}
+
+function StatusCard({ d, load }: { d: Today; load?: LoadResp }) {
   const s = d.status
   if (!s) return <section class="card"><p class="k">Training status</p><p class="empty">Not enough data yet.</p></section>
   return <section class="card" style={`--c:var(--s-${STATUS_KEY[s.label] ?? 'recov'})`}>
     <p class="k">Training status</p>
     <h2 class="ts">{s.label}</h2>
-    <p class="why2">{statusReason(s)}</p>
+    <p class="why2">{s.reason || statusReason(s)}</p>
     <div class="facts">
       <div><b>{num(s.ctl)}{s.ramp7 != null && <small> {sgn(s.ramp7, 1)}</small>}</b><span>Fitness, change over 7 days</span></div>
       <div><b>{sgn(s.tsb)}</b><span>Form</span></div>
       <div><b>{num(s.acwr, 2)}</b><span>Load ratio</span></div>
     </div>
+    {load && load.days.length > 0 && <StatusStrip days={load.days} />}
   </section>
 }
 
@@ -89,7 +105,7 @@ function CoachCard() {
   return <section class="card coachc"><p class="k">Coach<Pill>Later</Pill></p><h2>Coach arrives in a later phase</h2><p>Suggestions for your day will show up here once the coach is connected.</p></section>
 }
 
-function Gauge({ min, max, lo, hi, v }: { min: number; max: number; lo?: number | null; hi?: number | null; v: number }) {
+export function Gauge({ min, max, lo, hi, v }: { min: number; max: number; lo?: number | null; hi?: number | null; v: number }) {
   return <span class="gs" aria-hidden="true">{lo != null && hi != null && <i class="b" style={`left:${pct(lo, min, max)}%;width:${pct(hi, min, max) - pct(lo, min, max)}%`} />}<i class="m" style={`left:${pct(v, min, max)}%`} /></span>
 }
 function Tile({ l, v, u, tone, lab, g, n }: { l: string; v: string; u?: string; tone?: string; lab?: string; g?: preact.ComponentChildren; n: string }) {
@@ -114,18 +130,18 @@ function Glances({ d }: { d: Today }) {
 }
 
 function Week({ d }: { d: Today }) {
-  const w = d.this_week
+  const w = d.this_week, todayDate = d.data_date
   if (!w || !w.sessions) return <section class="card"><p class="empty">No sessions yet this week.</p></section>
   return <section class="card"><div class="kv">
     <div><span class="num">{w.sessions}</span><span class="lab">{w.sessions === 1 ? 'Session' : 'Sessions'}</span></div>
     <div><span class="num">{km(w.distance_m)}<small> km</small></span><span class="lab">Distance</span></div>
     <div><span class="num">{dur(w.duration_s)}</span><span class="lab">Time</span></div>
     <div><span class="num">{num(w.load)}</span><span class="lab">Load</span></div>
-  </div><p class="cap2">Since Monday {day(w.start, { day: 'numeric', month: 'short' })}.</p></section>
+  </div>{w.days && <div class="days7" style="margin-top:14px">{w.days.map((x) => <div class={x.date === todayDate ? 'on' : ''}><span>{day(x.date, { weekday: 'short' })}</span><b>{x.km ? num(x.km, 1) : DASH}</b><span>{x.active_min ? `${num(x.active_min)} min` : 'rest'}</span></div>)}</div>}<p class="cap2">Since Monday {day(w.start, { day: 'numeric', month: 'short' })}.</p></section>
 }
 
-function GoalsBlock({ g }: { g: Goals }) {
-  const p = g.progress, y = p?.year, w = p?.week, s = p?.steps
+export function GoalsBlock({ p }: { p: GoalProgress | null | undefined }) {
+  const y = p?.year, w = p?.week, s = p?.steps
   if (!y && !w && !s) return <section class="card"><p class="empty">No goals set yet.</p></section>
   return <section class="card"><div class="rows gcols">
     {y && <div><div class="h"><span class="l">Yearly distance</span><b>{num(y.ytd_km)} km<small> aiming for {num(y.target_km)} km</small></b></div>
@@ -135,7 +151,7 @@ function GoalsBlock({ g }: { g: Goals }) {
       <div class="bar"><span class="band" style={`left:${pct(w.band_lo, 0, w.band_hi * 1.25)}%;width:${pct(w.band_hi, 0, w.band_hi * 1.25) - pct(w.band_lo, 0, w.band_hi * 1.25)}%`} /><i style={`width:${pct(w.km, 0, w.band_hi * 1.25)}%`} /></div>
       <p>{paceWord(w.status) ? `For the days so far you are ${paceWord(w.status)}.` : 'The week has only just started.'}</p></div>}
     {s && <div><div class="h"><span class="l">Steps today</span><b>{num(s.today)}<small> aiming for {num(s.goal)}</small></b></div>
-      <div class="bar"><i style={`width:${pct(s.today, 0, s.goal)}%`} /></div>
+      <div class="bar"><i style={`width:${pct(s.today ?? 0, 0, s.goal)}%`} /></div>
       <p>{s.streak_days ? `${s.streak_days} days in a row at goal${s.today_pending ? ' so far, today still counts' : ''}. ` : ''}{paceWord(s.status) ? `You are ${paceWord(s.status)}.` : ''}</p></div>}
   </div></section>
 }
@@ -150,7 +166,7 @@ function brief(d: Today) {
 }
 const greet = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening' }
 
-export function TodayView({ d, goals, retryGoals }: { d: Today; goals: ReturnType<typeof useApi<Goals>>[0]; retryGoals: () => void }) {
+export function TodayView({ d, load }: { d: Today; load?: LoadResp }) {
   if (!d.data_date) return <section class="card"><p class="k">Nothing here yet</p><p class="t0">No data has synced. Run a sync from Settings and come back.</p><a class="btn" href="#/settings">Open Settings</a></section>
   const b = brief(d)
   return <>
@@ -158,7 +174,7 @@ export function TodayView({ d, goals, retryGoals }: { d: Today; goals: ReturnTyp
     <h1>{greet()}</h1>
     {b && <p class="brief">{b}</p>}
     <Carousel items={[
-      { label: 'Training status', node: () => <StatusCard d={d} /> },
+      { label: 'Training status', node: () => <StatusCard d={d} load={load} /> },
       { label: 'Latest activity', node: () => <ActivityCard d={d} /> },
       { label: 'Sleep', node: () => <SleepCard d={d} /> },
       { label: 'Readiness', node: () => <ReadinessCard d={d} /> },
@@ -169,15 +185,16 @@ export function TodayView({ d, goals, retryGoals }: { d: Today; goals: ReturnTyp
     <h2 class="sh">This week</h2>
     <Week d={d} />
     <h2 class="sh">Goals</h2>
-    {goals.s === 'loading' ? <section class="card sk" aria-busy="true" /> : goals.s === 'error' ? <Err msg={goals.msg} retry={retryGoals} /> : <GoalsBlock g={goals.data} />}
+    <GoalsBlock p={d.goals} />
+    <p class="cap2" style="margin-left:4px"><a href="#/goals">All goals</a></p>
   </>
 }
 
 export function TodayPage() {
-  const [t, retry] = useApi<Today>('/api/today'), [g, retryG] = useApi<Goals>('/api/goals')
+  const [t, retry] = useApi<Today>('/api/today'), [l] = useApi<LoadResp>('/api/load?days=28')
   return <>
     {t.s === 'loading' && <><h1>Today</h1><Skeleton /></>}
     {t.s === 'error' && <><h1>Today</h1><Err msg={t.msg} retry={retry} /></>}
-    {t.s === 'ok' && <TodayView d={t.data} goals={g} retryGoals={retryG} />}
+    {t.s === 'ok' && <TodayView d={t.data} load={l.s === 'ok' ? l.data : undefined} />}
   </>
 }

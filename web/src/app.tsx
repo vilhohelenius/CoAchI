@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'preact/hooks'
 import { TodayPage } from './today'
 import { Settings } from './settings'
+import { LoadPage } from './load'
+import { RecoveryPage } from './recovery'
+import { IntensityPage } from './intensity'
+import { GoalsPage } from './goals'
 
-const NAV = [['today', 'Today'], ['activities', 'Activities'], ['insights', 'Insights'], ['goals', 'Goals'], ['settings', 'Settings']] as const
+const NAV = [['today', 'Today'], ['load', 'Load'], ['recovery', 'Recovery'], ['intensity', 'Intensity'], ['goals', 'Goals'], ['settings', 'Settings']] as const
 const route = () => location.hash.replace(/^#\/?/, '').split('/')[0] || 'today'
-
-function Coming({ name }: { name: string }) {
-  return <><h1>{name}</h1><section class="card"><p class="k">Coming soon</p><p class="t0">This page is not built yet. Today has the daily view.</p><a class="btn" href="#/today">Back to Today</a></section></>
-}
 
 export function App() {
   const [r, setR] = useState(route)
@@ -16,14 +16,14 @@ export function App() {
     addEventListener('hashchange', f)
     return () => removeEventListener('hashchange', f)
   }, [])
-  const name = NAV.find((n) => n[0] === r)?.[1]
+  const known = NAV.some((n) => n[0] === r)
   return <>
     <nav class="nav" aria-label="Main">
       <b class="logo">CoAchI</b>
       {NAV.map(([k, l]) => <a href={`#/${k}`} aria-current={r === k ? 'page' : undefined}>{l}</a>)}
     </nav>
     <main id="main">
-      {r === 'today' || !name ? <TodayPage /> : r === 'settings' ? <Settings /> : <Coming name={name} />}
+      {r === 'today' || !known ? <TodayPage /> : r === 'settings' ? <Settings /> : r === 'load' ? <LoadPage /> : r === 'recovery' ? <RecoveryPage /> : r === 'intensity' ? <IntensityPage /> : <GoalsPage />}
     </main>
   </>
 }

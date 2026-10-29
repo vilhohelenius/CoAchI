@@ -9,7 +9,7 @@ Empty database: `/api/today` returns `{ as_of, data_date: null }`, the others re
 ```json
 {
   "as_of": "2030-06-01T12:00:00.000Z", "data_date": "2030-06-01",
-  "status": { "label": "Productive", "ctl": 41.2, "atl": 48.9, "tsb": -7.7, "acwr": 1.12, "ramp7": 2.4, "warming_up": false },
+  "status": { "label": "Productive", "reason": "Fitness is rising and fatigue is manageable.", "ctl": 41.2, "atl": 48.9, "tsb": -7.7, "acwr": 1.12, "ramp7": 2.4, "warming_up": false },
   "readiness": { "score": 68.4, "label": "moderate", "confidence": "ok", "capped": false, "n_components": 5, "drivers": ["sleep", "hrv"],
     "components": [ { "key": "hrv", "label": "HRV vs your normal", "weight": 30, "available": true, "n": 58, "score": 74.1, "value": "z 0.2" },
                     { "key": "body_battery", "label": "Body battery", "weight": 5, "available": false, "n": 0, "score": null, "value": null } ] },
@@ -20,12 +20,13 @@ Empty database: `/api/today` returns `{ as_of, data_date: null }`, the others re
     "hrv": { "last": 58, "h7": 57.2, "base": 55.0, "low": 47.0, "high": 64.5, "z": 0.2, "z_last": 0.3, "status": "in_range", "n7": 7, "n_base": 58, "range_ok": true },
     "recovery": { "rhr7": 50.4, "z_rhr": -0.3, "divergence": "normal", "balance": { "hrv": "in", "rhr": "in", "balanced": true }, "streak_days": 9 },
     "sleep_stats": { "sd_min": 24.5, "n_nights7": 7, "social_jetlag_min": 35, "debt_h": 1.5, "n_debt": 14, "need_h": 8 } },
-  "this_week": { "start": "2030-05-27", "sessions": 4, "distance_m": 32000, "duration_s": 10800, "load": 240.5, "run_distance_m": 32000 },
-  "goals": "see GET /api/goals progress"
+  "this_week": { "start": "2030-05-27", "sessions": 4, "distance_m": 32000, "duration_s": 10800, "load": 240.5, "run_distance_m": 32000,
+                 "days": [ { "date": "2030-05-27", "km": 8.0, "active_min": 45 } ] },
+  "goals": { "year": { "...": 0 }, "week": { "...": 0 }, "steps": { "...": 0 } }
 }
 ```
 
-`status.label` is one of Productive, Maintaining, Recovery, Overreaching, Detraining, Not enough data. `readiness.label` is high (80+), moderate (60-79), low (40-59), poor. `confidence` is `ok`, `low` (under 3 components) or `none`. `divergence` is one of strain, hrv_dip, rhr_rise, recovered, hrv_high, normal or null. `hrv.status` is below, in_range, above or null (the normal range is only shown when `range_ok`).
+`status.reason` is the plain sentence from `trainingStatus()`, saved by recompute for the latest day only (`null` until the next recompute). `this_week.days` has 7 entries, Monday first, with the km and active minutes of all activities (0 on rest days). `goals` is the same object as `progress` in `/api/goals`, or `null`. `status.label` is one of Productive, Maintaining, Recovery, Overreaching, Detraining, Not enough data. `readiness.label` is high (80+), moderate (60-79), low (40-59), poor. `confidence` is `ok`, `low` (under 3 components) or `none`. `divergence` is one of strain, hrv_dip, rhr_rise, recovered, hrv_high, normal or null. `hrv.status` is below, in_range, above or null (the normal range is only shown when `range_ok`).
 
 ## GET /api/load?days=180 (or from=YYYY-MM-DD)
 

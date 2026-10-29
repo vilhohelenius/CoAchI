@@ -4,8 +4,8 @@ import { h } from 'preact'
 import { TodayView } from '../src/today'
 import { day, dur, km, num, pace, sgn, statusReason } from '../src/fmt'
 import today from '../fixtures/today.json'
-import goals from '../fixtures/goals.json'
-import type { Goals, Today } from '../src/types'
+import load from '../fixtures/load.json'
+import type { Today } from '../src/types'
 
 describe('fmt', () => {
   it('formats and degrades on null', () => {
@@ -26,24 +26,23 @@ describe('fmt', () => {
   })
 })
 
-const view = (d: unknown, g: Goals | null) =>
-  render(h(TodayView, { d: d as Today, goals: g ? { s: 'ok', data: g } : { s: 'error', msg: 'The server did not answer.' }, retryGoals: () => {} }))
+const view = (d: unknown, load?: unknown) => render(h(TodayView, { d: d as Today, load: load as never }))
 
 describe('Today render', () => {
   it('shows the fixture', () => {
-    const html = view(today, goals as Goals)
-    for (const s of ['Productive', 'Morning run', '5:38', '82', 'Moderate', '4 of 5 signals used', 'No data today', 'Coach arrives in a later phase', 'on pace', 'ahead of pace'])
+    const html = view(today, load)
+    for (const s of ['Productive', 'Morning run', '5:38', '82', 'Moderate', '4 of 5 signals used', 'No data today', 'Coach arrives in a later phase', 'on pace', 'ahead of pace', 'Fitness is rising and fatigue is manageable.', 'Status over the last 28 days', '10.5'])
       expect(html).toContain(s)
     expect(html.replace(/<[^>]*>/g, ' ')).not.toMatch(/null|NaN|undefined|[—;]/)
   })
-  it('degrades when most values are null and goals fail', () => {
+  it('degrades when most values are null and goals are missing', () => {
     const html = view({ as_of: 'x', data_date: '2030-06-01', status: null, readiness: { score: null, label: 'poor', confidence: 'none', capped: false, n_components: 0, drivers: [], components: [] },
-      last_activity: null, sleep: { date: '2030-06-01', total_s: 25000, deep_s: null, light_s: null, rem_s: null, awake_s: null, score: null, start_ts: null, end_ts: null }, tiles: null, this_week: null }, null)
-    for (const s of ['Not enough data yet', 'No activities synced yet', 'Stage breakdown is not available', 'No sessions yet this week', 'Try again'])
+      last_activity: null, sleep: { date: '2030-06-01', total_s: 25000, deep_s: null, light_s: null, rem_s: null, awake_s: null, score: null, start_ts: null, end_ts: null }, tiles: null, this_week: null })
+    for (const s of ['Not enough data yet', 'No activities synced yet', 'Stage breakdown is not available', 'No sessions yet this week', 'No goals set yet'])
       expect(html).toContain(s)
     expect(html.replace(/<[^>]*>/g, ' ')).not.toMatch(/null|NaN|undefined/)
   })
   it('shows the empty state on an empty database', () => {
-    expect(view({ as_of: 'x', data_date: null }, null)).toContain('No data has synced')
+    expect(view({ as_of: 'x', data_date: null })).toContain('No data has synced')
   })
 })

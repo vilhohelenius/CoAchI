@@ -58,6 +58,7 @@ export async function recompute(db: Store, today: string, full = false) {
       tsb: p.tsb, acwr: acwr(total, i), hard_share: zAll > 0 ? zHard / zAll : null })
     out.push(upsertStmt('load_daily', ['date'], { date: d, load: r2(total[i]), ctl: r2(p.ctl), atl: r2(p.atl), tsb: r2(p.tsb), tsb_end: r2(p.tsb_end),
       acwr: r2(acwr(total, i)), ramp7: r2(ramp(ctl, i)), status: st.label, warming_up: +(i < 84) }))
+    if (d === today) m(d, 'status', null, { reason: st.reason }) // read by /api/today
     nLoad++
     if (d >= addDays(today, -KEEP))
       for (const s of SPORTS) {

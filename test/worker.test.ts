@@ -172,6 +172,7 @@ describe('metric endpoints', () => {
     const today = await get('/api/today')
     expect(today.data_date).toBe(d(0)); expect(today.status.label).toBeTruthy(); expect(today.last_activity.load).toBeGreaterThan(0)
     expect(today.readiness.components.length).toBe(6); expect(today.goals.steps.goal).toBe(10000)
+    expect(today.status.reason).toBeTruthy(); expect(today.this_week.days.length).toBe(7)
     const load = await get('/api/load?days=30')
     expect(load.days.length).toBe(30); expect(load.projection.rest.length).toBe(21); expect(Object.keys(load.per_sport)).toContain('run')
     expect((await get('/api/intensity')).share_28d.all.hard).toBeCloseTo(0.333, 2)
