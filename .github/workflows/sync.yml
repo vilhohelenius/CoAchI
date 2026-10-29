@@ -1,10 +1,10 @@
 name: sync
-# Manual only until phase 2 is verified in production. Then uncomment the schedule.
+# Every 3 hours (free and unlimited minutes on a public repo) and on demand.
 # Never use pull_request_target here. No artifacts, caches or job summaries (public logs).
 on:
   workflow_dispatch:
-  # schedule:
-  #   - cron: "17 */3 * * *"
+  schedule:
+    - cron: "17 */3 * * *"
 permissions:
   contents: read
 concurrency:
