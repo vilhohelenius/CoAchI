@@ -22,7 +22,7 @@ export function HeatmapView({ d }: { d: RoutesResp }) {
     <div class="tools"><div class="seg" role="group" aria-label="Sport">{[['run', 'Runs'], ['bike', 'Rides'], ['all', 'All']].map(([k, l]) => <button type="button" aria-pressed={sport === k} onClick={() => { setSport(k); setYear('all') }}>{l}</button>)}</div>
       <div class="seg" role="group" aria-label="Year">{['all', ...years].map((y) => <button type="button" aria-pressed={year === y} onClick={() => setYear(y)}>{y === 'all' ? 'All years' : y}</button>)}</div></div>
     <section class="card act"><p class="k"><span>Heatmap</span><span>{runs.length} {runs.length === 1 ? 'run' : 'runs'}</span></p>
-      {m && <TileMap key={year + sport} w={W} h={H} tiles={m.tiles} label={`Heatmap of ${runs.length} runs. Brighter lines are routes you run more often.`}>{(on) =>
+      {m && <TileMap key={year + sport} fit={m} label={`Heatmap of ${runs.length} runs. Brighter lines are routes you run more often.`}>{(on) =>
         runs.map((r) => <path d={'M' + pairs(r).map((p) => m.P(p).map((x) => x.toFixed(1)).join(' ')).join('L')} fill="none" stroke="var(--link)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" opacity={on ? 0.3 : 0.16} />)}</TileMap>}
       <p class="mu">Map tiles come from OpenStreetMap, so the tile server sees roughly which area you are viewing. Without a connection the map falls back to plain lines.</p></section>
     <RouteList runs={d.runs.filter((r) => (r[6] ?? 'run') === 'run')} />

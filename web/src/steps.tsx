@@ -7,13 +7,14 @@ import type { StepsResp } from './types'
 export function StepsView({ d }: { d: StepsResp }) {
   const g = d.goal, s = d.summary, days = d.days
   if (!g || !days.some((x) => x.steps != null)) return <section class="card"><p class="k">No steps yet</p><p class="t0">Daily steps appear here once a sync has run.</p><a class="btn" href="#/settings">Open Settings</a></section>
-  const last = days[days.length - 1], hit = days.filter((x) => x.steps != null && x.steps >= g).length
+  const last = days[days.length - 1], today = last.date === d.as_of.slice(0, 10), hit = days.filter((x) => x.steps != null && x.steps >= g).length
   return <>
     <p class="sub">Goal is {num(g)} a day. Change it in <a href="#/goals">Goals</a>.</p>
     <div class="g2"><div class="stk">
-      <section class="card"><p class="k">Latest day<span>{day(last.date, { weekday: 'short', day: 'numeric', month: 'short' })}</span></p>
-        <div class="big">{num(last.steps)}<small> {last.steps == null ? '' : `${Math.round((last.steps / g) * 100)}% of ${num(g)}`}</small></div>
-        <div class="bar"><i style={`width:${pct(last.steps ?? 0, 0, g)}%`} /></div></section>
+      <section class="card"><p class="k">{today ? 'Today so far' : 'Latest day'}<span>{day(last.date, { weekday: 'short', day: 'numeric', month: 'short' })}</span></p>
+        <div class="bigrow"><span class="big">{num(last.steps)}</span>{last.steps != null && <span class="bst">{Math.round((last.steps / g) * 100)}%<small>of {num(g)}</small></span>}</div>
+        <div class="bar"><i style={`width:${pct(last.steps ?? 0, 0, g)}%`} /></div>
+        {today && last.steps != null && <p class="t0" style="margin:0">{last.steps >= g ? 'Goal reached.' : `${num(g - last.steps)} left.`}</p>}</section>
       {s && <section class="card"><p class="k">Streak<span>calendar days at goal</span></p>
         <div class="big">{s.streak_days}<small> days</small></div>
         <p class="cap2">{s.today_pending ? 'Today does not break it until midnight.' : 'Today is at goal as well.'}</p></section>}

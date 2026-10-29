@@ -3,14 +3,15 @@ import { useApi } from './api'
 import { LineChart, StackedBars } from './chart'
 import { DASH, day, dur, km, num, pace } from './fmt'
 import { DynamicsCard } from './dynamics'
-import { ShoeCard } from './shoes'
+import { ShoeCard, ShoesView } from './shoes'
+import { HeatmapView } from './heatmap'
 import { TileMap, mapFit } from './tiles'
 import { Err, Page, Pill, Tile } from './today'
-import type { ActDetail, ActList, ActResp, ActRow, Lap } from './types'
+import type { ActDetail, ActList, ActResp, ActRow, Lap, RoutesResp, ShoesResp } from './types'
 
 const SPORT: Record<string, string> = { run: 'Running', bike: 'Cycling', ski: 'Skiing', strength: 'Strength', other: 'Other' }
 const sportName = (s?: string) => SPORT[s ?? 'other'] ?? 'Other'
-const FILTERS: [string, string][] = [['all', 'All'], ['run', 'Runs'], ['bike', 'Rides'], ['ski', 'Ski'], ['strength', 'Strength']]
+const FILTERS: [string, string][] = [['all', 'All'], ['run', 'Runs'], ['bike', 'Rides']]
 const footed = (s?: string, t?: string | null) => s === 'run' || /walk|hik/i.test(t ?? '')
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`
 const clockOf = (s: number) => (s >= 3600 ? `${Math.floor(s / 3600)}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}:${String(Math.round(s % 60)).padStart(2, '0')}` : mmss(s))
@@ -37,11 +38,16 @@ export function ActivitiesView({ items, sport, setSport, more, onMore, busy, err
     <div class="tools"><div class="seg" role="group" aria-label="Sport">{FILTERS.map(([k, l]) => <button type="button" aria-pressed={sport === k} onClick={() => setSport(k)}>{l}</button>)}</div>
       {items.length > 0 && <span class="lab" role="status">{items.length} activities since {since}{more ? ', more to load' : ''}</span>}</div>
     {!items.length && !err ? <section class="card"><p class="k">Nothing here yet</p><p class="t0">{sport === 'all' ? 'No activities have synced.' : `No ${sportName(sport).toLowerCase()} activities have synced.`}</p><a class="btn" href="#/settings">Open Settings</a></section>
-      : <div class="pg">{groups.map(([k, g]) => { const runs = g.filter((a) => footed(a.sport, a.type)), rk = runs.reduce((t, a) => t + (a.distance_m ?? 0), 0)
+      : <div class="stk" style="margin-top:10px">{groups.map(([k, g]) => { const runs = g.filter((a) => footed(a.sport, a.type)), rk = runs.reduce((t, a) => t + (a.distance_m ?? 0), 0)
         return <section class="card alist"><p class="k"><b>{month(k)}</b><span>{runs.length ? `${runs.length} ${runs.length === 1 ? 'run' : 'runs'} · ${km(rk, 0)} km` : `${g.length} ${g.length === 1 ? 'activity' : 'activities'}`}</span></p>{g.map((a) => <Row a={a} />)}</section> })}</div>}
     {err && <Err msg={err} retry={onMore} />}
     {more && !err && <p style="text-align:center;margin:14px 0"><button class="btn g" disabled={busy} onClick={onMore}>{busy ? 'Loading' : 'Load more'}</button></p>}
   </>
+}
+
+const TABS: [string, string][] = [['', 'List'], ['calendar', 'Calendar'], ['routes', 'Routes'], ['shoes', 'Shoes']]
+function Tabs({ cur }: { cur: string }) {
+  return <div class="tools"><div class="seg" role="group" aria-label="View">{TABS.map(([k, l]) => <button type="button" aria-pressed={cur === k} onClick={() => { location.hash = '#/activities' + (k && '/' + k) }}>{l}</button>)}</div></div>
 }
 
 export function ActivitiesPage() {
@@ -57,10 +63,51 @@ export function ActivitiesPage() {
   }
   useEffect(() => { setItems([]); setNext(null); load(null, true) }, [sport, tick])
   return <>
-    <h1>Activities</h1>
+    <h1>Activities</h1><Tabs cur="" />
     {busy && !items.length && !err ? <><div class="tools"><div class="seg" /></div><div aria-busy="true" aria-label="Loading"><section class="card sk" /></div></>
       : <ActivitiesView items={items} sport={sport} setSport={setSport} more={next != null} busy={busy} err={err} onMore={() => (err && !items.length ? setTick((t) => t + 1) : load(next, false))} />}
   </>
+}
+
+// ---- calendar and the other tabs ----
+const WD = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+/** One square per day of a month: run km, or ride km in blue. `items` may hold other months. */
+export function CalendarView({ items, y, m, now, move }: { items: ActRow[]; y: number; m: number; now: string; move: (d: number) => void }) {
+  const pre = `${y}-${String(m + 1).padStart(2, '0')}`, dim = new Date(y, m + 1, 0).getDate(), off = (new Date(y, m, 1).getDay() + 6) % 7
+  const by: Record<string, ActRow[]> = {}
+  for (const a of items) if (a.start_local.startsWith(pre)) (by[a.start_local.slice(8, 10)] ??= []).push(a)
+  let runs = 0, rk = 0, rides = 0
+  const cells = Array.from({ length: off }, () => <div class="cd e" />)
+  for (let d = 1; d <= dim; d++) {
+    const k = String(d).padStart(2, '0'), g = by[k] ?? [], r = g.filter((a) => footed(a.sport, a.type)), b = g.filter((a) => a.sport === 'bike'), a = r[0] ?? b[0], dist = (r.length ? r : b).reduce((t, x) => t + (x.distance_m ?? 0), 0), tdy = `${pre}-${k}` === now
+    runs += r.length; rk += r.reduce((t, x) => t + (x.distance_m ?? 0), 0); rides += r.length ? 0 : b.length
+    cells.push(a ? <a class={`cd${tdy ? ' tdy' : ''}${r.length ? '' : ' rd'}`} href={`#/activities/${a.id}`} aria-label={`${d} ${month(pre)}, ${km(dist, 1)} km ${r.length ? 'run' : 'ride'}`}><span>{d}</span><b>{km(dist, 1)}</b></a>
+      : <div class={`cd${tdy ? ' tdy' : ''}`} aria-label={`${d} ${month(pre)}, no activity`}><span>{d}</span></div>)
+  }
+  return <section class="card"><div class="calh"><button type="button" class="btn g s" onClick={() => move(-1)} aria-label="Previous month">Previous</button>
+    <h2 class="ch2" aria-live="polite">{month(pre)}</h2><button type="button" class="btn g s" onClick={() => move(1)} disabled={pre >= now.slice(0, 7)} aria-label="Next month">Next</button></div>
+    <div class="calg">{WD.map((d) => <div class="wd">{d}</div>)}{cells}</div>
+    <p class="cap2">{runs} {runs === 1 ? 'run' : 'runs'}, {km(rk, 0)} km{rides ? `, ${rides} ${rides > 1 ? 'rides' : 'ride'} in blue` : ''}. Each square shows kilometres.</p></section>
+}
+function Calendar() {
+  const t = new Date(), now = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
+  const [c, setC] = useState({ y: t.getFullYear(), m: t.getMonth() }), [items, setItems] = useState<ActRow[]>([]), [err, setErr] = useState<string | null>(null)
+  useEffect(() => { // ponytail: the newest 100 activities up to the end of the month, plenty for one month
+    const e = new Date(c.y, c.m + 1, 1), before = `${e.getFullYear()}-${String(e.getMonth() + 1).padStart(2, '0')}-01`
+    setErr(null); fetch(`/api/activities?limit=100&sport=all&before=${before}`).then((r) => (r.ok ? (r.json() as Promise<ActList>) : Promise.reject(new Error(`The server answered ${r.status}.`))))
+      .then((d) => setItems(d.activities)).catch((e: Error) => setErr(e.message === 'Failed to fetch' ? 'The server did not answer.' : e.message))
+  }, [c])
+  const move = (d: number) => setC(({ y, m }) => { const n = new Date(y, m + d, 1); return { y: n.getFullYear(), m: n.getMonth() } })
+  return <>{err && <Err msg={err} retry={() => setC({ ...c })} />}<CalendarView items={items} y={c.y} m={c.m} now={now} move={move} /></>
+}
+function Load<T>({ url, children }: { url: string; children: (d: T, retry: () => void) => preact.ComponentChildren }) {
+  const [st, retry] = useApi<T>(url)
+  return st.s === 'loading' ? <div aria-busy="true" aria-label="Loading"><section class="card sk" /></div> : st.s === 'error' ? <Err msg={st.msg} retry={retry} /> : <>{children(st.data, retry)}</>
+}
+const SUBS: Record<string, string> = { calendar: 'Calendar', routes: 'Routes and heatmap', shoes: 'Shoes' }
+function ActSub({ sub }: { sub: string }) {
+  return <><h1>{SUBS[sub]}</h1><Tabs cur={sub} />
+    {sub === 'calendar' ? <Calendar /> : sub === 'routes' ? <Load<RoutesResp> url="/api/routes">{(d) => <HeatmapView d={d} />}</Load> : <Load<ShoesResp> url="/api/shoes">{(d, r) => <ShoesView d={d} reload={r} />}</Load>}</>
 }
 
 // ---- detail ----
@@ -86,10 +133,10 @@ export function routePath(pts: [number, number][], w = 300, h = 190, pad = 14) {
 function Route({ pts }: { pts: [number, number][] }) {
   const m = pts.length > 1 ? mapFit(pts, 300, 190) : null, P = m ? pts.map(m.P) : [], d = 'M' + P.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join('L')
   return <section class="card act"><p class="k">Route</p>
-    {m && <TileMap w={300} h={190} tiles={m.tiles} label="Route of this activity, start and finish marked">{(on) => <>
+    {m && <TileMap fit={m} label="Route of this activity, start and finish marked">{(on, k) => <>
       {on && <path d={d} fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" />}
       <path d={d} fill="none" stroke="var(--link)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
-      <circle cx={P[0][0]} cy={P[0][1]} r="5" fill="var(--ok)" stroke="#fff" stroke-width="1.5" /><circle cx={P[P.length - 1][0]} cy={P[P.length - 1][1]} r="5" fill="var(--s-over)" stroke="#fff" stroke-width="1.5" /></>}</TileMap>}
+      <circle cx={P[0][0]} cy={P[0][1]} r={5 / k} fill="var(--ok)" stroke="#fff" stroke-width={1.5 / k} /><circle cx={P[P.length - 1][0]} cy={P[P.length - 1][1]} r={5 / k} fill="var(--s-over)" stroke="#fff" stroke-width={1.5 / k} /></>}</TileMap>}
     <p class="mu">Green is the start, red is the finish.</p></section>
 }
 
@@ -190,7 +237,8 @@ export function ActivityView({ d }: { d: ActResp }) {
   </>
 }
 
-export function ActivityPage({ id }: { id: string }) {
+export function ActivityPage({ id }: { id: string }) { return SUBS[id] ? <ActSub sub={id} /> : <ActivityDetail id={id} /> }
+function ActivityDetail({ id }: { id: string }) {
   const [st, retry] = useApi<ActResp>(`/api/activities/${encodeURIComponent(id)}`)
   return <Page title={st.s === 'ok' ? st.data.activity.name || sportName(st.data.activity.sport) : 'Activity'} st={st} retry={retry}>{(d) => <ActivityView d={d} />}</Page>
 }

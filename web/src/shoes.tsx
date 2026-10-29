@@ -14,7 +14,7 @@ function ShoeForm({ s, done }: { s?: Shoe; done: () => void }) {
   const on = (k: string) => (e: Event) => setV({ ...v, [k]: (e.target as HTMLInputElement).value })
   const submit = async (e: Event) => {
     e.preventDefault()
-    const start_km = Number(v.start_km), retire_km = Number(v.retire_km)
+    const start_km = Number(v.start_km.replace(',', '.')), retire_km = Number(v.retire_km)
     if (!v.name.trim() || !(start_km >= 0 && start_km <= 20000) || !(retire_km >= 100 && retire_km <= 3000)) return setMsg('Check the numbers. A name is needed, retire between 100 and 3000 km.')
     const r = await send(s ? `/api/shoes/${s.id}` : '/api/shoes', s ? 'PATCH' : 'POST', { name: v.name.trim(), brand: v.brand.trim() || null, start_km, retire_km, default_for: v.def ? 'run' : null })
     const m = say(r); m ? setMsg(m) : done()
@@ -23,7 +23,7 @@ function ShoeForm({ s, done }: { s?: Shoe; done: () => void }) {
     <div class="pr">
       <label><span class="lab">Name</span><input type="text" maxLength={60} value={v.name} onInput={on('name')} /></label>
       <label><span class="lab">Brand</span><input type="text" maxLength={60} value={v.brand} onInput={on('brand')} /></label>
-      <label><span class="lab">Kilometres already run</span><input type="number" inputMode="decimal" min={0} max={20000} step={10} value={v.start_km} onInput={on('start_km')} /></label>
+      <label><span class="lab">Kilometres already run</span><input type="number" inputMode="decimal" min={0} max={20000} step="any" value={v.start_km} onInput={on('start_km')} /></label>
       <label><span class="lab">Retire at</span><input type="number" inputMode="numeric" min={100} max={3000} step={50} value={v.retire_km} onInput={on('retire_km')} /> <small class="lab" style="display:inline">km</small></label>
     </div>
     <label class="cap2"><input type="checkbox" checked={v.def} onChange={() => setV({ ...v, def: !v.def })} /> Use for new runs</label>
@@ -32,7 +32,8 @@ function ShoeForm({ s, done }: { s?: Shoe; done: () => void }) {
 
 function ShoeCardRow({ s, edit, reload }: { s: Shoe; edit: () => void; reload: () => void }) {
   const flip = async () => { await send(`/api/shoes/${s.id}`, 'PATCH', { retired_on: s.retired_on ? null : new Date().toISOString().slice(0, 10) }); reload() }
-  return <section class="card"><p class="k">{s.name}{s.brand && <span>{s.brand}</span>}{s.default_for && <Pill tone="ok">Used for new runs</Pill>}{s.alert && <Pill tone="warn">{s.alert === 'over' ? 'Time to retire' : 'Nearly worn out'}</Pill>}</p>
+  return <section class="card"><p class="k"><span>{s.brand || 'Shoe'}</span>{s.default_for && <Pill tone="ok">Used for new runs</Pill>}{s.retired_on ? <Pill>Retired</Pill> : s.alert ? <Pill tone="warn">{s.alert === 'over' ? 'Time to retire' : 'Nearly worn out'}</Pill> : <Pill tone="ok">Good</Pill>}</p>
+    <b style="font-size:18px">{s.name}</b>
     <div class="big">{num(s.km)}<small> of {num(s.retire_km)} km</small></div>
     <div class="bar"><i style={`width:${Math.min(100, (s.km / s.retire_km) * 100)}%`} /></div>
     <p class="cap2">{s.runs} {s.runs === 1 ? 'run' : 'runs'}{s.last_run ? `, last on ${day(s.last_run, { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}{s.retired_on ? `. Retired ${day(s.retired_on, { day: 'numeric', month: 'short', year: 'numeric' })}.` : ''}</p>
@@ -46,8 +47,8 @@ export function ShoesView({ d, reload }: { d: ShoesResp; reload: () => void }) {
   const row = (s: Shoe) => editing === s.id ? <ShoeForm s={s} done={done} /> : <ShoeCardRow s={s} edit={() => setEditing(s.id)} reload={reload} />
   return <>
     <p class="sub">Kilometres are counted from the runs given to each shoe. New runs get the shoe marked for new runs.</p>
-    {live.length ? <div class="g2">{live.map(row)}</div> : <section class="card"><p class="k">No shoes yet</p><p class="t0">Add a pair below to start counting its kilometres.</p></section>}
-    {old.length > 0 && <><h2 class="sh">Retired</h2><div class="g2">{old.map(row)}</div></>}
+    {live.length ? <div class="g3">{live.map(row)}</div> : <section class="card"><p class="k">No shoes yet</p><p class="t0">Add a pair below to start counting its kilometres.</p></section>}
+    {old.length > 0 && <><h2 class="sh">Retired</h2><div class="g3">{old.map(row)}</div></>}
     <h2 class="sh">Add a shoe</h2><ShoeForm done={done} />
   </>
 }
