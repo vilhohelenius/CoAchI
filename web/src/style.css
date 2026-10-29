@@ -142,3 +142,8 @@ input[type=number]{font:inherit;color:var(--ink);background:var(--soft);border:1
 .xp{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;background:var(--soft);font-weight:600;font-size:14px}.xp:hover{background:var(--tint)}.xp[aria-expanded=true]{background:var(--ink);color:var(--pane)}
 .ex{background:var(--soft);border-radius:var(--r2);padding:14px;margin:12px 0 0}.ex h4{margin:12px 0 4px;font-size:14px}.ex h4:first-child{margin-top:0}.ex p{margin:0;font-size:14.5px}
 .exf{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;font-size:12.5px;color:var(--mute);flex-wrap:wrap}
+
+/* whole-card links: the title is the anchor, its ::after covers the card, so inner controls stay usable */
+.cl{color:inherit;text-decoration:none}.cl::after{content:"";position:absolute;inset:0;border-radius:var(--r)}.cl:focus-visible{outline:0}
+.card:has(.cl:hover),a.t:hover{box-shadow:0 0 0 2px var(--line)}.card:has(.cl:focus-visible),a.t:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+a.t{color:inherit;text-decoration:none}.parts{position:relative;z-index:1}

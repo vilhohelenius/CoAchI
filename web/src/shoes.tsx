@@ -70,6 +70,6 @@ export function ShoeCard({ id, shoe }: { id: number; shoe: number | null }) {
   }
   return <section class="card"><h3 class="ch">Shoes</h3>
     <label><span class="lab">Worn on this run</span><select value={cur ?? ''} onChange={pick}><option value="">No shoe</option>{opts.map((s) => <option value={s.id}>{s.name}</option>)}</select></label>
-    {now && <p class="cap2">{num(now.km)} of {num(now.retire_km)} km{now.alert === 'over' ? ', time to retire them' : ''}.</p>}
+    {now && <p class="cap2">{num(now.km)} of {num(now.retire_km)} km{now.alert === 'over' ? ', time to retire them' : ''}. <a href="#/shoes">All shoes</a></p>}
     <p class="cap2" role="status">{msg}</p></section>
 }

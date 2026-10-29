@@ -105,6 +105,13 @@ describe('frontend end to end', () => {
     await go('#/insights/nope')
     await vi.waitFor(() => expect(root.textContent).toContain('does not exist'))
   })
+  it('Today tiles and cards are links to their insight or activity page', async () => {
+    await go('#/today')
+    await vi.waitFor(() => expect(root.querySelector('a.t')).toBeTruthy())
+    const hrefs = [...root.querySelectorAll('a.t, a.cl')].map((a) => a.getAttribute('href'))
+    for (const h of ['#/insights/hrv', '#/insights/rhr', '#/insights/battery', '#/insights/load', '#/insights/status', '#/insights/sleep', '#/insights/recovery']) expect(hrefs).toContain(h)
+    expect(hrefs.some((h) => /^#\/activities\/\d+$/.test(h ?? ''))).toBe(true)
+  })
   it('unknown route falls back to Today', async () => {
     location.hash = '#/nope'
     await vi.waitFor(() => expect(root.querySelector('.nav [aria-current]')?.textContent).toBe('Today'))

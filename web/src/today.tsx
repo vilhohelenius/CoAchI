@@ -27,7 +27,7 @@ function StatusCard({ d, load }: { d: Today; load?: LoadResp }) {
   const s = d.status
   if (!s) return <section class="card"><p class="k">Training status</p><p class="empty">Not enough data yet.</p></section>
   return <section class="card" style={`--c:var(--s-${STATUS_KEY[s.label] ?? 'recov'})`}>
-    <p class="k">Training status</p>
+    <p class="k"><a class="cl" href="#/insights/status">Training status</a></p>
     <h2 class="ts">{s.label}</h2>
     <p class="why2">{s.reason || statusReason(s)}</p>
     <div class="facts">
@@ -55,7 +55,7 @@ function ActivityCard({ d }: { d: Today }) {
   if (run) stats.push(['Pace', pace(a.distance_m, a.duration_s), ' /km'])
   stats.push(['Avg heart rate', a.avg_hr == null ? DASH : num(a.avg_hr), a.avg_hr == null ? '' : ' bpm'])
   return <section class="card act">
-    <p class="k"><span>Latest activity</span><span>{day(a.start_local, { weekday: 'short', day: 'numeric', month: 'short' })}</span></p>
+    <p class="k"><a class="cl" href={`#/activities/${a.id}`}>Latest activity</a><span>{day(a.start_local, { weekday: 'short', day: 'numeric', month: 'short' })}</span></p>
     <RouteStamp has={false} />
     <div class="st">{stats.map(([l, v, u]) => <div><b>{v}<small>{u}</small></b><span>{l}</span></div>)}</div>
     <p class="mu">{a.name ?? 'Activity'}{a.load != null && <> with a load of {num(a.load)}</>}{a.elev_gain_m ? `, ${num(a.elev_gain_m)} m climbed` : ''}</p>
@@ -68,7 +68,7 @@ function SleepCard({ d }: { d: Today }) {
   if (!s || s.total_s == null) return <section class="card"><p class="k">Sleep</p><p class="empty">No sleep recorded for last night.</p></section>
   const lab = sleepLabel(s.score), have = STAGES.filter(([k]) => s[k] != null)
   return <section class="card">
-    <p class="k">Sleep{lab && <Pill tone={lab === 'Poor' ? 'warn' : 'ok'}>{lab}</Pill>}</p>
+    <p class="k"><a class="cl" href="#/insights/sleep">Sleep</a>{lab && <Pill tone={lab === 'Poor' ? 'warn' : 'ok'}>{lab}</Pill>}</p>
     <div class="sleepn">
       {s.score != null ? <span class="sc2">{s.score}</span> : <span class="sc2 dur">{dur(s.total_s)}</span>}
       <span class="st2">{s.score != null ? 'Score' : 'Asleep'}<small>{s.score != null ? `${dur(s.total_s)} asleep` : 'No score for this night'}{s.start_ts && s.end_ts ? `, ${clock(s.start_ts)} to ${clock(s.end_ts)}` : ''}</small></span>
@@ -86,7 +86,7 @@ export function ReadinessCard({ d }: { d: Today }) {
   if (!r || r.score == null || r.confidence === 'none') return <section class="card"><p class="k">Readiness</p><p class="empty">Not enough data yet to score today.</p></section>
   const on = r.label === 'high' ? 3 : r.label === 'moderate' ? 2 : r.label === 'low' ? 1 : 0, avail = r.components.filter((c) => c.available)
   return <section class="card">
-    <p class="k">Readiness{r.capped && <Pill tone="warn">Held down</Pill>}</p>
+    <p class="k"><a class="cl" href="#/insights/recovery">Readiness</a>{r.capped && <Pill tone="warn">Held down</Pill>}</p>
     <div class="rn"><span class="sc">{Math.round(r.score)}</span><span class="st">{readinessWord(r.label)}<small>out of 100</small></span></div>
     <div class="scale" role="img" aria-label={`Readiness ${Math.round(r.score)} of 100, ${r.label}`}><i /><i /><i /><i /><span class="mk" style={`left:${r.score}%`} /></div>
     <div class="sl">{SEGS.map((b, i) => <span class={i === on ? 'on' : ''}>{b}</span>)}</div>
@@ -108,23 +108,24 @@ function CoachCard() {
 export function Gauge({ min, max, lo, hi, v }: { min: number; max: number; lo?: number | null; hi?: number | null; v: number }) {
   return <span class="gs" aria-hidden="true">{lo != null && hi != null && <i class="b" style={`left:${pct(lo, min, max)}%;width:${pct(hi, min, max) - pct(lo, min, max)}%`} />}<i class="m" style={`left:${pct(v, min, max)}%`} /></span>
 }
-export function Tile({ l, v, u, tone, lab, g, n }: { l: string; v: string; u?: string; tone?: string; lab?: string; g?: preact.ComponentChildren; n: string }) {
-  return <div class="t"><p class="k">{l}{lab && <Pill tone={tone}>{lab}</Pill>}</p><div class="v">{v}{u && <small>{u}</small>}</div>{g}<span class="n">{n}</span></div>
+export function Tile({ href, l, v, u, tone, lab, g, n }: { href?: string; l: string; v: string; u?: string; tone?: string; lab?: string; g?: preact.ComponentChildren; n: string }) {
+  const body = <><p class="k">{l}{lab && <Pill tone={tone}>{lab}</Pill>}</p><div class="v">{v}{u && <small>{u}</small>}</div>{g}<span class="n">{n}</span></>
+  return href ? <a class="t" href={href}>{body}</a> : <div class="t">{body}</div>
 }
 function Glances({ d }: { d: Today }) {
   const t = d.tiles, h = t?.hrv, rc = t?.recovery, s = d.status
   const hl = h?.status === 'below' ? ['Below normal', 'warn'] : h?.status === 'above' ? ['Above range', 'ok'] : h?.status === 'in_range' ? ['In your range', 'ok'] : []
   const z = rc?.z_rhr, ac = s?.acwr
   return <div class="glance">
-    <Tile l="HRV" v={num(h?.last ?? t?.hrv_last_night)} u=" ms" lab={h?.range_ok ? hl[0] : undefined} tone={hl[1]}
+    <Tile href="#/insights/hrv" l="HRV" v={num(h?.last ?? t?.hrv_last_night)} u=" ms" lab={h?.range_ok ? hl[0] : undefined} tone={hl[1]}
       g={(h?.last ?? t?.hrv_last_night) != null && <Gauge min={30} max={100} lo={h?.range_ok ? h.low : null} hi={h?.range_ok ? h.high : null} v={(h?.last ?? t?.hrv_last_night)!} />}
       n={h?.range_ok ? `Normal range ${num(h.low)} to ${num(h.high)}, from ${h.n_base} nights` : h ? `Still building your normal range, ${h.n_base} nights so far` : 'No overnight reading'} />
-    <Tile l="Resting heart rate" v={num(t?.rhr)} u=" bpm" lab={z == null ? undefined : z >= 1 ? 'Above usual' : z <= -1 ? 'Below usual' : 'Usual'} tone={z != null && z >= 1 ? 'warn' : 'ok'}
+    <Tile href="#/insights/rhr" l="Resting heart rate" v={num(t?.rhr)} u=" bpm" lab={z == null ? undefined : z >= 1 ? 'Above usual' : z <= -1 ? 'Below usual' : 'Usual'} tone={z != null && z >= 1 ? 'warn' : 'ok'}
       n={rc?.rhr7 != null ? `7-day average ${num(rc.rhr7)}` : 'No 7-day average yet'} />
-    <Tile l="Body battery" v={num(t?.body_battery_max)} u=" / 100" g={t?.body_battery_max != null && <Gauge min={0} max={100} v={t.body_battery_max} />} n={t?.body_battery_max != null ? 'Highest level today' : 'No reading today'} />
+    <Tile href="#/insights/battery" l="Body battery" v={num(t?.body_battery_max)} u=" / 100" g={t?.body_battery_max != null && <Gauge min={0} max={100} v={t.body_battery_max} />} n={t?.body_battery_max != null ? 'Highest level today' : 'No reading today'} />
     <Tile l="Stress" v={num(t?.stress_avg)} u=" avg" lab={t?.stress_avg == null ? undefined : stressLabel(t.stress_avg)} tone="mute" g={t?.stress_avg != null && <Gauge min={0} max={100} v={t.stress_avg} />} n="Daily average out of 100" />
-    <Tile l="Form" v={sgn(s?.tsb)} n={s?.tsb == null ? 'Not enough data yet' : 'Fitness minus fatigue'} />
-    <Tile l="Load ratio" v={num(ac, 2)} lab={ac == null ? undefined : ac < 0.8 ? 'Light' : ac <= 1.3 ? 'In range' : 'High'} tone={ac != null && ac > 1.3 ? 'warn' : 'ok'}
+    <Tile href="#/insights/load" l="Form" v={sgn(s?.tsb)} n={s?.tsb == null ? 'Not enough data yet' : 'Fitness minus fatigue'} />
+    <Tile href="#/insights/load" l="Load ratio" v={num(ac, 2)} lab={ac == null ? undefined : ac < 0.8 ? 'Light' : ac <= 1.3 ? 'In range' : 'High'} tone={ac != null && ac > 1.3 ? 'warn' : 'ok'}
       g={ac != null && <Gauge min={0.4} max={1.8} lo={0.8} hi={1.3} v={ac} />} n="Safe range is 0.8 to 1.3" />
   </div>
 }
