@@ -34,7 +34,7 @@ export function Nav({ r, coach = false }: { r: string; coach?: boolean }) {
   const tabs = GROUPS.flatMap((g) => g[1]).filter((v) => TABS.includes(v[0]))
   return <>
     <nav class="nav side" aria-label="Views">
-      <b class="logo">CoAchI</b>{groups()}
+      <b class="logo" aria-label="CoAchI">Co<i>A</i>ch<i>I</i></b>{groups()}
       <button class="mode" onClick={flip}>Theme: {mode}</button>
     </nav>
     <nav class="tabs" aria-label="Main">

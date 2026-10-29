@@ -23,12 +23,43 @@ async function ask(message: string, on: (event: string, data: any) => void) {
   }
 }
 
+const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
+const inl = (s: string) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+const LI = /^\s*([-*]|\d+\.)\s+/
+/** Tiny markdown for coach replies: headings, tables, lists, bold, code. Everything is HTML-escaped first, so the output is safe to inject. */
+export function md(src: string) {
+  const L = src.split('\n'), out: string[] = []
+  let i = 0
+  while (i < L.length) {
+    const l = L[i], t = l.trim(), h = /^#{1,4}\s+(.*)/.exec(l)
+    if (!t) i++
+    else if (h) { out.push(`<h4>${inl(h[1])}</h4>`); i++ }
+    else if (t.startsWith('|')) {
+      const rows: string[] = []
+      while (i < L.length && L[i].trim().startsWith('|')) rows.push(L[i++])
+      const cells = (r: string) => r.trim().replace(/^\||\|$/g, '').split('|').map((c) => inl(c.trim())), head = rows.length > 1 && /^[\s|:-]+$/.test(rows[1])
+      out.push(`<div class="tbw"><table>${head ? `<thead><tr>${cells(rows[0]).map((c) => `<th>${c}</th>`).join('')}</tr></thead>` : ''}<tbody>${rows.slice(head ? 2 : 0).map((r) => `<tr>${cells(r).map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`)
+    } else if (LI.test(l)) {
+      const tag = /^\s*\d/.test(l) ? 'ol' : 'ul', items: string[] = []
+      while (i < L.length && LI.test(L[i])) items.push(inl(L[i++].replace(LI, '')))
+      out.push(`<${tag}>${items.map((x) => `<li>${x}</li>`).join('')}</${tag}>`)
+    } else {
+      const p: string[] = []
+      while (i < L.length && L[i].trim() && !/^#{1,4}\s/.test(L[i]) && !L[i].trim().startsWith('|') && !LI.test(L[i])) p.push(inl(L[i++]))
+      out.push(`<p>${p.join('<br>')}</p>`)
+    }
+  }
+  return out.join('')
+}
+
+const CHIPS = ['How recovered am I today?', 'How was my week?', 'Should I run tomorrow?']
+
 function Chat({ first }: { first: Msg[] }) {
   const [msgs, setMsgs] = useState(first), [text, setText] = useState(''), [busy, setBusy] = useState(''), [sent, setSent] = useState(false)
   const last = (f: (c: string) => string) => setMsgs((m) => m.map((x, i) => (i === m.length - 1 ? { ...x, content: f(x.content) } : x)))
-  const submit = async (e: Event) => {
+  const submit = async (e: Event, preset?: string) => {
     e.preventDefault()
-    const message = text.trim()
+    const message = (preset ?? text).trim()
     if (!message || busy) return
     setText(''); setBusy('Thinking'); setSent(true); setMsgs((m) => [...m, { role: 'user', content: message }, { role: 'assistant', content: '' }])
     await ask(message, (ev, d) => {
@@ -41,8 +72,9 @@ function Chat({ first }: { first: Msg[] }) {
   return <section class="card chat">
     <div class="msgs" role="log" aria-live="polite">
       {!msgs.length && <p class="t0">Ask about today, your week or a plan. Numbers come from your own data.</p>}
-      {msgs.map((m) => <div class={`msg ${m.role}`}>{m.content || (busy && '…')}</div>)}
+      {msgs.map((m) => m.role === 'user' || !m.content ? <div class={`msg ${m.role}`}>{m.content || (busy && '…')}</div> : <div class="msg assistant" dangerouslySetInnerHTML={{ __html: md(m.content) }} />)}
     </div>
+    {!busy && <div class="chips">{CHIPS.map((c) => <button type="button" onClick={(e) => submit(e, c)}>{c}</button>)}</div>}
     <p class="cap2" role="status">{busy}</p>
     <form class="cform" onSubmit={submit}>
       <input type="text" aria-label="Message the coach" maxLength={2000} value={text} onInput={(e) => setText((e.target as HTMLInputElement).value)} placeholder={sent ? 'Ask a follow-up' : 'Should I run tomorrow?'} />
@@ -68,9 +100,9 @@ function Notes() {
 
 export function CoachPage() {
   const [st, retry] = useApi<{ messages: Msg[] }>('/api/coach/messages'), [u] = useApi<{ usd: number; cap_usd: number; calls: number }>('/api/coach/usage')
-  return <Page title="Coach" st={st} retry={retry}>{(d) => <>
+  return <Page title="Coach" st={st} retry={retry}>{(d) => <div class="cgrid">
     <Chat first={d.messages} />
     <Notes />
     {u.s === 'ok' && <p class="cap2">This month: USD {u.data.usd.toFixed(2)} of {u.data.cap_usd.toFixed(2)} across {u.data.calls} calls.</p>}
-  </>}</Page>
+  </div>}</Page>
 }
