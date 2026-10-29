@@ -38,14 +38,19 @@ export function mapFit(pts: [number, number][], w: number, h: number, pad = 14, 
   const s = Math.min((w - 2 * pad) / (x1 - x0 || 1e-9), (h - 2 * pad) / (y1 - y0 || 1e-9), 128 * 2 ** MAXZ), ox = pad + (w - 2 * pad - (x1 - x0) * s) / 2, oy = pad + (h - 2 * pad - (y1 - y0) * s) / 2
   const P = (p: [number, number]) => [ox + (mx(p[1]) - x0) * s, oy + (my(p[0]) - y0) * s] as [number, number]
   const at = (v: View) => cover(v.x + ox * v.k, v.y + oy * v.k, x0, y0, s * v.k, w, h)
-  return { P, at, tiles: at(V0), w, h }
+  return { P, at, tiles: at(V0), w, h, g: { s, ox, oy, x0, y0 } }
 }
 export type Fit = ReturnType<typeof mapFit>
+/** The view of `full` that shows exactly what `dense` (a tighter fit of the same points) shows, so a map can open on the busy part and still zoom out to everything. */
+export function focusView(full: Fit, dense: Fit): View {
+  const f = full.g, d = dense.g, k = d.s / f.s
+  return zoomView({ k, x: d.ox - f.ox * k - (d.x0 - f.x0) * d.s, y: d.oy - f.oy * k - (d.y0 - f.y0) * d.s }, k, 0, 0, full.w, full.h)
+}
 
 /** The map box with drag, wheel, pinch, double click and +/- zoom. Tiles load once it is near the screen, and if every tile fails the box is just the plain background and route. `children(on, k)` draws the route in zoom 1 coordinates (strokes keep their width), `on` says whether tiles are showing and `k` is the zoom for sizing markers. */
-export function TileMap({ fit, label, children }: { fit: Fit; label: string; children: (on: boolean, k: number) => ComponentChildren }) {
+export function TileMap({ fit, start, label, children }: { fit: Fit; start?: View; label: string; children: (on: boolean, k: number) => ComponentChildren }) {
   const { w, h } = fit, ref = useRef<HTMLDivElement>(null), svg = useRef<SVGSVGElement>(null), ptr = useRef(new Map<number, [number, number]>())
-  const [seen, setSeen] = useState(false), [bad, setBad] = useState<string[]>([]), [v, setV] = useState(V0)
+  const [seen, setSeen] = useState(false), [bad, setBad] = useState<string[]>([]), [v, setV] = useState(start ?? V0)
   useEffect(() => {
     const el = ref.current
     if (!el || typeof IntersectionObserver === 'undefined') { setSeen(true); return }

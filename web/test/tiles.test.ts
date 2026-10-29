@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { V0, MAXK, mapFit, panView, zoomView } from '../src/tiles'
+import { V0, MAXK, focusView, mapFit, panView, zoomView } from '../src/tiles'
 
 describe('map zoom and pan', () => {
   const pts: [number, number][] = [[50, 8], [50.02, 8.03], [50.01, 8.01]]
@@ -17,5 +17,11 @@ describe('map zoom and pan', () => {
     expect(z(b[0].url)).toBeGreaterThanOrEqual(z(a[0].url)) // zooming in never picks coarser tiles
     expect(Math.min(...b.map((t) => t.x))).toBeLessThanOrEqual(0); expect(Math.max(...b.map((t) => t.x + t.size))).toBeGreaterThanOrEqual(300)
     expect(m.at(V0)).toEqual(m.tiles)
+  })
+  it('focusView opens on the dense part and the full fit is one zoom-out away', () => {
+    const far: [number, number][] = [...pts, [51, 9]], full = mapFit(far, 300, 190), dense = mapFit(pts, 300, 190), v = focusView(full, dense)
+    expect(v.k).toBeGreaterThan(1)
+    const [fx, fy] = full.P(pts[1]), [dx, dy] = dense.P(pts[1])
+    expect(fx * v.k + v.x).toBeCloseTo(dx, 5); expect(fy * v.k + v.y).toBeCloseTo(dy, 5)
   })
 })
