@@ -5,6 +5,7 @@ import { log } from './log.js'
 import { Store, Stmt, getState, setState, upsert } from './store.js'
 import { parseFit, unzipFit, type Parsed } from './fit.js'
 import { buildDetail } from '../src/metrics/activity.js'
+import { effortStmts } from './records.js'
 
 export type Ctx = { g: Garmin; db: Store; today: string; outDir: string; deadline?: number; put?: (key: string, body: Uint8Array) => Promise<void> }
 const rows = (r: any): any[] => (Array.isArray(r) ? r : []) // 204 / null / {nulls} all mean "no data"
@@ -131,7 +132,7 @@ export async function fitStage(c: Ctx, max = Infinity) {
       await put(`streams/${id}.json.gz`, gzipSync(js(p.streams)))
       await put(`detail/${id}.json`, Buffer.from(js(buildDetail(p.streams)))) // small, downsampled, read by the Worker
       await c.db.batch([
-        ...parsedStmts(id, p),
+        ...parsedStmts(id, p), ...effortStmts(id, p.streams),
         [`UPDATE activities SET fit_status='ok', fit_r2_key=?, rpe=COALESCE(?,rpe), feel=COALESCE(?,feel) WHERE id=?`, [`fit/${id}.zip`, p.rpe, p.feel, id]],
       ])
       ok++

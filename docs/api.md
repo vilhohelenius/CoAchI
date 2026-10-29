@@ -135,3 +135,17 @@ One GROUP BY over running activities, `weeks` up to 260 (default 26), oldest fir
 ## Recompute
 
 `tsx sync/run.ts recompute [--full] [--target remote]` rebuilds the derived tables. It also runs at the end of `steady` (last 14 days written, `RECOMP_DAYS` to change) and `backfill` (full). The first run on an empty `load_daily` is always full. Older edits to raw rows need `--full`.
+
+## GET /api/records
+
+Best efforts from the sync `records` stage. Needs migration `0004_best_efforts.sql`. Without it, or before the stage has run, the answer is `available:false` with empty lists.
+
+`{ as_of, available, n_runs, records: [{ label, unit, best: [{ rank, value, date, activity_id }], timeline: [{ date, value, activity_id }] }] }`. Labels `1k`, `1mi`, `5k`, `10k`, `hm` (value in seconds) and `p60`, `p300`, `p1200` (watts, only present when power exists). `best` is the all-time top 3, `timeline` every personal best on the day it was set, oldest first. `n_runs` is how many runs were analysed.
+
+## GET /api/fitness-estimates?riegel=1.06
+
+Reads the stored `fitness` row of `metric_daily` and applies Riegel at request time (a few multiplications). `riegel` is clamped to 1.02 to 1.12. `{ as_of, available, data_date, riegel, spread, vo2, cs, predictions, sources }`.
+
+- `vo2`: `{ value, n, from, to, history: [{ week_start, value, n }] }` for the last 26 weeks, `value` is null with fewer than 3 steady runs in the 28 days.
+- `cs`: `{ ok, reason, n, cs (m/s), dprime (m), r2, from, to }`. `ok:false` with `reason` `few` (fewer than 3 efforts in 90 days) or `poor` (r2 below 0.98 or implausible values).
+- `predictions`: for `5k`, `10k`, `hm`, `marathon`: `{ point_s, lo_s, hi_s, cs_s, flags, source: { label, time_s, date, age_days } }`. `lo_s` and `hi_s` use the exponent minus and plus `spread` (0.03). `flags` holds `old` (source older than 56 days) and `short` (target more than 4 times the source distance). `cs_s` only for 5 km and 10 km.

@@ -4,6 +4,7 @@ import type { DB, Env } from './index.js'
 import { addDays, diffDays, weekStart } from '../metrics/dates.js'
 import { sportOf } from '../metrics/load.js'
 import { composition } from '../metrics/sleep.js'
+import { BEST_LABELS, predictions } from '../metrics/records.js'
 
 type App = Hono<{ Bindings: Env }>
 const q = async <T = Record<string, unknown>>(db: DB, sql: string, ...b: unknown[]) => (await db.prepare(sql).bind(...b).all<T>()).results
@@ -145,6 +146,32 @@ export function metricRoutes(app: App, now: () => number) {
     const win = (end: number, w: number) => (end - w + 1 < 0 ? null : km1(pre[end + 1] - pre[end + 1 - w]))
     for (let i = (total - 1) % 7; i < total; i += 7) { rolling.dates.push(addDays(origin, i)); rolling.km30.push(win(i, 30)); rolling.km365.push(win(i, 365)) }
     return c.json({ as_of: asOf(), sport: sp ?? 'all', today, goal_km: g?.v ?? null, years: Object.values(years), rolling })
+  })
+
+  // ---- records and fitness estimates: stored by the sync `records` stage. Empty with available:false until migration 0004 and the stage have run. ----
+  app.get('/api/records', async (c) => {
+    try {
+      const rows = await q<{ label: string; activity_id: number; value: number; date: string; rank: number | null; is_pb: number }>(c.env.DB, 'SELECT label, activity_id, value, date, rank, is_pb FROM best_efforts ORDER BY date, activity_id')
+      const [n] = await q<{ n: number }>(c.env.DB, `SELECT COUNT(*) n FROM activity_efforts WHERE label='done'`)
+      const records = BEST_LABELS.filter((l) => !l.startsWith('p') || rows.some((r) => r.label === l)).map((label) => {
+        const mine = rows.filter((r) => r.label === label), lo = !label.startsWith('p')
+        return { label, unit: lo ? 's' : 'W',
+          best: mine.filter((r) => r.rank).sort((a, b) => a.rank! - b.rank!).map((r) => ({ rank: r.rank, value: r.value, date: r.date, activity_id: r.activity_id })),
+          timeline: mine.filter((r) => r.is_pb).map((r) => ({ date: r.date, value: r.value, activity_id: r.activity_id })) }
+      })
+      return c.json({ as_of: asOf(), available: n.n > 0, n_runs: n.n, records })
+    } catch { return c.json({ as_of: asOf(), available: false, n_runs: 0, records: [] }) }
+  })
+
+  app.get('/api/fitness-estimates', async (c) => {
+    const k = Math.min(1.12, Math.max(1.02, Number(c.req.query('riegel')) || 1.06)), today = asOf().slice(0, 10)
+    try {
+      const [m] = await q<M>(c.env.DB, `SELECT * FROM metric_daily WHERE key='fitness' ORDER BY date DESC LIMIT 1`)
+      if (!m) return c.json({ as_of: asOf(), available: false, riegel: k })
+      const f = pj(m), cs = f.cs.ok ? f.cs : null
+      return c.json({ as_of: asOf(), available: true, data_date: m.date, riegel: k, spread: 0.03, vo2: f.vo2, cs: f.cs,
+        predictions: predictions(f.sources, today, k, cs), sources: f.sources })
+    } catch { return c.json({ as_of: asOf(), available: false, riegel: k }) }
   })
 
   // ---- activities ----

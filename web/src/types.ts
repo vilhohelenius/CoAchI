@@ -51,3 +51,11 @@ export type ActResp = { as_of: string; activity: ActRow & { moving_s: number | n
 
 type DynPoint = { avg: number; n: number } | null
 export type DynResp = { as_of: string; weeks: ({ week_start: string } & Record<'stride_m' | 'vert_osc_mm' | 'vert_ratio' | 'gct_ms' | 'gct_balance' | 'cadence' | 'power', DynPoint>)[] }
+
+export type RecordsResp = { as_of: string; available: boolean; n_runs: number
+  records: { label: string; unit: 's' | 'W'; best: { rank: number; value: number; date: string; activity_id: number }[]; timeline: { date: string; value: number; activity_id: number }[] }[] }
+export type Vo2 = { value: number | null; n: number; from: string; to: string; history: { week_start: string; value: number | null; n: number }[] }
+export type CsFit = { ok: boolean; reason: string | null; n: number; cs?: number; dprime?: number; r2?: number; from: string; to: string }
+export type Prediction = { label: string; dist_m: number; point_s: number | null; lo_s: number | null; hi_s: number | null; cs_s: number | null; flags: string[]
+  source: { label: string; dist_m: number; time_s: number; date: string; age_days: number } | null }
+export type FitnessResp = { as_of: string; available: boolean; riegel: number; vo2?: Vo2; cs?: CsFit; predictions?: Prediction[] }

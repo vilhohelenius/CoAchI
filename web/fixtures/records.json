@@ -1,0 +1,276 @@
+{
+ "as_of": "2030-06-01T12:00:00.000Z",
+ "available": true,
+ "n_runs": 142,
+ "records": [
+  {
+   "label": "1k",
+   "unit": "s",
+   "best": [
+    {
+     "rank": 1,
+     "value": 215,
+     "date": "2030-04-21",
+     "activity_id": 104
+    },
+    {
+     "rank": 2,
+     "value": 225,
+     "date": "2030-02-09",
+     "activity_id": 103
+    },
+    {
+     "rank": 3,
+     "value": 242,
+     "date": "2029-11-18",
+     "activity_id": 102
+    }
+   ],
+   "timeline": [
+    {
+     "date": "2029-03-12",
+     "value": 250,
+     "activity_id": 100
+    },
+    {
+     "date": "2029-08-02",
+     "value": 238,
+     "activity_id": 101
+    },
+    {
+     "date": "2029-11-18",
+     "value": 230,
+     "activity_id": 102
+    },
+    {
+     "date": "2030-02-09",
+     "value": 222,
+     "activity_id": 103
+    },
+    {
+     "date": "2030-04-21",
+     "value": 215,
+     "activity_id": 104
+    }
+   ]
+  },
+  {
+   "label": "1mi",
+   "unit": "s",
+   "best": [
+    {
+     "rank": 1,
+     "value": 360,
+     "date": "2030-04-21",
+     "activity_id": 104
+    },
+    {
+     "rank": 2,
+     "value": 375,
+     "date": "2030-02-09",
+     "activity_id": 103
+    },
+    {
+     "rank": 3,
+     "value": 392,
+     "date": "2029-11-18",
+     "activity_id": 102
+    }
+   ],
+   "timeline": [
+    {
+     "date": "2029-03-12",
+     "value": 420,
+     "activity_id": 100
+    },
+    {
+     "date": "2029-08-02",
+     "value": 400,
+     "activity_id": 101
+    },
+    {
+     "date": "2029-11-18",
+     "value": 385,
+     "activity_id": 102
+    },
+    {
+     "date": "2030-02-09",
+     "value": 372,
+     "activity_id": 103
+    },
+    {
+     "date": "2030-04-21",
+     "value": 360,
+     "activity_id": 104
+    }
+   ]
+  },
+  {
+   "label": "5k",
+   "unit": "s",
+   "best": [
+    {
+     "rank": 1,
+     "value": 1260,
+     "date": "2030-04-21",
+     "activity_id": 104
+    },
+    {
+     "rank": 2,
+     "value": 1313,
+     "date": "2030-02-09",
+     "activity_id": 103
+    },
+    {
+     "rank": 3,
+     "value": 1330,
+     "date": "2029-11-18",
+     "activity_id": 102
+    }
+   ],
+   "timeline": [
+    {
+     "date": "2029-03-12",
+     "value": 1500,
+     "activity_id": 100
+    },
+    {
+     "date": "2029-08-02",
+     "value": 1430,
+     "activity_id": 101
+    },
+    {
+     "date": "2029-11-18",
+     "value": 1370,
+     "activity_id": 102
+    },
+    {
+     "date": "2030-02-09",
+     "value": 1310,
+     "activity_id": 103
+    },
+    {
+     "date": "2030-04-21",
+     "value": 1260,
+     "activity_id": 104
+    }
+   ]
+  },
+  {
+   "label": "10k",
+   "unit": "s",
+   "best": [
+    {
+     "rank": 1,
+     "value": 2650,
+     "date": "2030-04-21",
+     "activity_id": 104
+    },
+    {
+     "rank": 2,
+     "value": 2803,
+     "date": "2030-02-09",
+     "activity_id": 103
+    },
+    {
+     "rank": 3,
+     "value": 2820,
+     "date": "2029-11-18",
+     "activity_id": 102
+    }
+   ],
+   "timeline": [
+    {
+     "date": "2029-08-02",
+     "value": 3100,
+     "activity_id": 100
+    },
+    {
+     "date": "2029-11-18",
+     "value": 2950,
+     "activity_id": 101
+    },
+    {
+     "date": "2030-02-09",
+     "value": 2800,
+     "activity_id": 102
+    },
+    {
+     "date": "2030-04-21",
+     "value": 2650,
+     "activity_id": 103
+    }
+   ]
+  },
+  {
+   "label": "hm",
+   "unit": "s",
+   "best": [
+    {
+     "rank": 1,
+     "value": 5900,
+     "date": "2030-04-21",
+     "activity_id": 104
+    },
+    {
+     "rank": 2,
+     "value": 6303,
+     "date": "2030-02-09",
+     "activity_id": 103
+    },
+    {
+     "rank": 3,
+     "value": 6320,
+     "date": "2029-11-18",
+     "activity_id": 102
+    }
+   ],
+   "timeline": [
+    {
+     "date": "2029-11-18",
+     "value": 6600,
+     "activity_id": 100
+    },
+    {
+     "date": "2030-02-09",
+     "value": 6300,
+     "activity_id": 101
+    },
+    {
+     "date": "2030-04-21",
+     "value": 5900,
+     "activity_id": 102
+    }
+   ]
+  },
+  {
+   "label": "p300",
+   "unit": "W",
+   "best": [
+    {
+     "rank": 1,
+     "value": 312,
+     "date": "2030-04-21",
+     "activity_id": 104
+    }
+   ],
+   "timeline": [
+    {
+     "date": "2029-11-18",
+     "value": 280,
+     "activity_id": 100
+    },
+    {
+     "date": "2030-02-09",
+     "value": 296,
+     "activity_id": 101
+    },
+    {
+     "date": "2030-04-21",
+     "value": 312,
+     "activity_id": 102
+    }
+   ]
+  }
+ ]
+}

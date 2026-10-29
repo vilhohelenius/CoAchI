@@ -1,0 +1,226 @@
+{
+ "as_of": "2030-06-01T12:00:00.000Z",
+ "available": true,
+ "riegel": 1.06,
+ "spread": 0.03,
+ "vo2": {
+  "value": 53.4,
+  "n": 5,
+  "from": "2030-05-05",
+  "to": "2030-06-01",
+  "history": [
+   {
+    "week_start": "2029-12-10",
+    "value": 52.6,
+    "n": 3
+   },
+   {
+    "week_start": "2029-12-17",
+    "value": 51.7,
+    "n": 4
+   },
+   {
+    "week_start": "2029-12-24",
+    "value": 51.8,
+    "n": 5
+   },
+   {
+    "week_start": "2029-12-31",
+    "value": null,
+    "n": 0
+   },
+   {
+    "week_start": "2030-01-07",
+    "value": null,
+    "n": 0
+   },
+   {
+    "week_start": "2030-01-14",
+    "value": 52.2,
+    "n": 4
+   },
+   {
+    "week_start": "2030-01-21",
+    "value": 53.3,
+    "n": 5
+   },
+   {
+    "week_start": "2030-01-28",
+    "value": 52.4,
+    "n": 6
+   },
+   {
+    "week_start": "2030-02-04",
+    "value": 52.6,
+    "n": 3
+   },
+   {
+    "week_start": "2030-02-11",
+    "value": 53.7,
+    "n": 4
+   },
+   {
+    "week_start": "2030-02-18",
+    "value": 52.8,
+    "n": 5
+   },
+   {
+    "week_start": "2030-02-25",
+    "value": null,
+    "n": 0
+   },
+   {
+    "week_start": "2030-03-04",
+    "value": 54.0,
+    "n": 3
+   },
+   {
+    "week_start": "2030-03-11",
+    "value": 53.2,
+    "n": 4
+   },
+   {
+    "week_start": "2030-03-18",
+    "value": 53.3,
+    "n": 5
+   },
+   {
+    "week_start": "2030-03-25",
+    "value": 54.4,
+    "n": 6
+   },
+   {
+    "week_start": "2030-04-01",
+    "value": 53.5,
+    "n": 3
+   },
+   {
+    "week_start": "2030-04-08",
+    "value": 53.6,
+    "n": 4
+   },
+   {
+    "week_start": "2030-04-15",
+    "value": 54.8,
+    "n": 5
+   },
+   {
+    "week_start": "2030-04-22",
+    "value": 53.9,
+    "n": 6
+   },
+   {
+    "week_start": "2030-04-29",
+    "value": 54.0,
+    "n": 3
+   },
+   {
+    "week_start": "2030-05-06",
+    "value": 55.1,
+    "n": 4
+   },
+   {
+    "week_start": "2030-05-13",
+    "value": 54.2,
+    "n": 5
+   },
+   {
+    "week_start": "2030-05-20",
+    "value": 54.4,
+    "n": 6
+   },
+   {
+    "week_start": "2030-05-27",
+    "value": 55.5,
+    "n": 3
+   },
+   {
+    "week_start": "2030-06-03",
+    "value": 54.6,
+    "n": 4
+   }
+  ]
+ },
+ "cs": {
+  "ok": true,
+  "reason": null,
+  "n": 4,
+  "cs": 4.05,
+  "dprime": 190,
+  "r2": 0.998,
+  "from": "2030-03-03",
+  "to": "2030-06-01",
+  "points": []
+ },
+ "predictions": [
+  {
+   "label": "5k",
+   "dist_m": 5000,
+   "point_s": 1260,
+   "lo_s": 1260,
+   "hi_s": 1260,
+   "cs_s": 1265,
+   "flags": [],
+   "source": {
+    "label": "5k",
+    "dist_m": 5000,
+    "time_s": 1260,
+    "date": "2030-04-21",
+    "age_days": 41
+   }
+  },
+  {
+   "label": "10k",
+   "dist_m": 10000,
+   "point_s": 2630,
+   "lo_s": 2590,
+   "hi_s": 2680,
+   "cs_s": 2660,
+   "flags": [],
+   "source": {
+    "label": "5k",
+    "dist_m": 5000,
+    "time_s": 1260,
+    "date": "2030-04-21",
+    "age_days": 41
+   }
+  },
+  {
+   "label": "hm",
+   "dist_m": 21097.5,
+   "point_s": 5890,
+   "lo_s": 5750,
+   "hi_s": 6050,
+   "cs_s": null,
+   "flags": [
+    "old"
+   ],
+   "source": {
+    "label": "hm",
+    "dist_m": 21097.5,
+    "time_s": 5900,
+    "date": "2030-02-09",
+    "age_days": 112
+   }
+  },
+  {
+   "label": "marathon",
+   "dist_m": 42195,
+   "point_s": 12400,
+   "lo_s": 12000,
+   "hi_s": 12800,
+   "cs_s": null,
+   "flags": [
+    "old",
+    "short"
+   ],
+   "source": {
+    "label": "10k",
+    "dist_m": 10000,
+    "time_s": 2650,
+    "date": "2030-02-09",
+    "age_days": 112
+   }
+  }
+ ]
+}

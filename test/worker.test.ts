@@ -4,6 +4,7 @@ import { createApp, daysLeft, watchdog, type Env } from '../src/worker/index.js'
 import { resetJwksCache } from '../src/worker/access.js'
 import { LocalStore } from '../sync/store.js'
 import { recompute } from '../sync/recompute.js'
+import { recordsStage } from '../sync/records.js'
 import { R2 } from '../sync/r2.js'
 import { D1Store } from '../sync/store.js'
 import { uploadDb, uploadFiles } from '../sync/upload.js'
@@ -178,6 +179,37 @@ describe('metric endpoints', () => {
     expect((await get('/api/intensity')).share_28d.all.hard).toBeCloseTo(0.333, 2)
     expect((await get('/api/goals')).progress.year.target_km).toBe(2000)
     expect((await get('/api/recovery?days=10')).days.length).toBeGreaterThan(0)
+  })
+})
+
+describe('records and fitness endpoints', () => {
+  const get = async (p: string, t: ReturnType<typeof mk>) => (await req(t.app, t.env, p, 'GET', await tok())).json() as Promise<any>
+  it('empty with available:false before the stage has run or the migration is applied', async () => {
+    const m = mk()
+    expect(await get('/api/fitness-estimates', m)).toMatchObject({ available: false })
+    expect(await get('/api/records', m)).toMatchObject({ available: false, n_runs: 0 })
+    await m.l.batch([['DROP TABLE best_efforts'], ['DROP TABLE activity_efforts']])
+    expect(await get('/api/records', m)).toMatchObject({ available: false })
+    expect((await req(m.app, m.env, '/api/records')).status).toBe(401)
+  })
+  it('serves stored best efforts, PB timeline, predictions and VO2 history', async () => {
+    const m = mk()
+    const runs = [[1, '2030-05-10', 1300], [2, '2030-05-15', 1250], [3, '2030-05-20', 1270]], ins = (id: number, l: string, v: number, n: number | null): [string, unknown[]] => ['INSERT INTO activity_efforts (activity_id,label,value,n) VALUES (?,?,?,?)', [id, l, v, n]]
+    await m.l.batch([["INSERT INTO hr_zones (effective_date,sport,lthr,max_hr,rest_hr,z1,z2,z3,z4,z5) VALUES ('2030-01-01','RUNNING',170,190,50,100,120,140,160,175)"],
+      ...runs.flatMap(([id, d, t]): [string, unknown[]][] => [['INSERT INTO activities (id,start_local,type,fit_status) VALUES (?,?,?,?)', [id, `${d} 07:00:00`, 'running', 'ok']],
+        ins(id as number, 'done', 1, null), ins(id as number, '5k', t as number, null), ins(id as number, 'ss_hr', 150, 3), ins(id as number, 'ss_v', 3, 3),
+        ...[180, 360, 720, 1200].map((T) => ins(id as number, `t${T}`, 3.8 * T + 200 - (id as number) * 5, null))])])
+    await recordsStage(m.l, '2030-06-01', tmpdir())
+    const r = await get('/api/records', m)
+    expect(r).toMatchObject({ available: true, n_runs: 3 })
+    const k = r.records.find((x: any) => x.label === '5k')
+    expect(k.best.map((b: any) => [b.rank, b.value])).toEqual([[1, 1250], [2, 1270], [3, 1300]]); expect(k.timeline.map((b: any) => b.value)).toEqual([1300, 1250])
+    expect(r.records.some((x: any) => x.label === 'p60')).toBe(false)
+    const f = await get('/api/fitness-estimates?riegel=1.08', m)
+    expect(f).toMatchObject({ available: true, riegel: 1.08, cs: { ok: true, n: 4 }, vo2: { n: 3 } }); expect(f.vo2.value).toBeGreaterThan(40); expect(f.vo2.history).toHaveLength(26)
+    const mar = f.predictions.find((p: any) => p.label === 'marathon')
+    expect(mar.point_s).toBeGreaterThan(f.predictions.find((p: any) => p.label === 'hm').point_s); expect(mar.flags).toContain('short'); expect(mar.lo_s).toBeLessThan(mar.hi_s)
+    expect((await get('/api/fitness-estimates?riegel=9', m)).riegel).toBe(1.12)
   })
 })
 

@@ -8,6 +8,9 @@ import { GoalsView } from '../src/goals'
 import { MileageView } from '../src/mileage'
 import { DynamicsView } from '../src/dynamics'
 import dyn from '../fixtures/dynamics.json'
+import { FitnessView, RecordsView } from '../src/records'
+import recs from '../fixtures/records.json'
+import fit from '../fixtures/fitness-estimates.json'
 import { ActivitiesView, ActivityView, routePath } from '../src/activities'
 import mWeek from '../fixtures/mileage-week.json'
 import mCmp from '../fixtures/mileage-compare.json'
@@ -101,5 +104,22 @@ describe('page renders', () => {
     expect(routePath([[1, 1]])).toBeNull()
     const r = routePath([[50, 8], [50.01, 8.02], [50.02, 8]])!
     for (const n of r.d.match(/-?\d+\.\d/g)!.map(Number)) { expect(n).toBeGreaterThanOrEqual(0); expect(n).toBeLessThanOrEqual(300) }
+  })
+  it('Records and predictions, normal and null-heavy', () => {
+    const html = render(h(RecordsView, { d: recs as never, sel: '5k', setSel: noop }))
+    for (const x of ['Best efforts across 142 runs', 'Half marathon', '21:00', 'How your best 5 km changed', 'Power, 5 min', 'Next:']) expect(html).toContain(x)
+    clean(html)
+    const one = render(h(RecordsView, { d: { ...recs, records: [{ ...recs.records[2], timeline: recs.records[2].timeline.slice(0, 1) }] } as never, sel: '5k', setSel: noop }))
+    expect(one).toContain('Only one record so far'); clean(one)
+    const none = render(h(RecordsView, { d: { as_of: 'x', available: false, n_runs: 0, records: [] }, sel: '5k', setSel: noop }))
+    expect(none).toContain('Not enough data yet'); clean(none)
+    const f = render(h(FitnessView, { f: fit as never, k: 1.06, setK: noop }))
+    for (const x of ['VO2max estimate', 'Estimate', 'Median of 5 steady runs', 'Critical speed', '4:07', 'Likely range', 'older than 8 weeks'.replace('older than', 'more than'), 'reaches well beyond', 'Exponent 1.06', 'Riegel']) expect(f).toContain(x)
+    clean(f)
+    const bare = render(h(FitnessView, { f: { as_of: 'x', available: true, riegel: 1.06, vo2: { value: null, n: 1, from: '2030-05-05', to: '2030-06-01', history: [] },
+      cs: { ok: false, reason: 'few', n: 2, from: '2030-03-03', to: '2030-06-01' }, predictions: [{ label: '5k', dist_m: 5000, point_s: null, lo_s: null, hi_s: null, cs_s: null, flags: [], source: null }] }, k: 1.06, setK: noop }))
+    for (const x of ['Not enough steady runs yet', 'Found 2', 'No recent effort', 'trend draws once']) expect(bare).toContain(x)
+    clean(bare)
+    expect(render(h(FitnessView, { f: { as_of: 'x', available: false, riegel: 1.06 }, k: 1.06, setK: noop }))).toContain('Estimates not ready')
   })
 })

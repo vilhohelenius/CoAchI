@@ -7,9 +7,10 @@ import { IntensityPage } from './intensity'
 import { DynamicsPage } from './dynamics'
 import { GoalsPage } from './goals'
 import { MileagePage } from './mileage'
+import { RecordsPage } from './records'
 import { ActivitiesPage, ActivityPage } from './activities'
 
-const NAV = [['today', 'Today'], ['load', 'Load'], ['recovery', 'Recovery'], ['intensity', 'Intensity'], ['dynamics', 'Dynamics'], ['goals', 'Goals'], ['mileage', 'Mileage'], ['activities', 'Activities'], ['settings', 'Settings']] as const
+const NAV = [['today', 'Today'], ['load', 'Load'], ['recovery', 'Recovery'], ['intensity', 'Intensity'], ['dynamics', 'Dynamics'], ['goals', 'Goals'], ['mileage', 'Mileage'], ['activities', 'Activities'], ['records', 'Records'], ['settings', 'Settings']] as const
 const parts = () => location.hash.replace(/^#\/?/, '').split('/')
 const route = () => parts()[0] || 'today'
 
@@ -28,7 +29,7 @@ export function App() {
       {NAV.map(([k, l]) => <a href={`#/${k}`} aria-current={r === k ? 'page' : undefined}>{l}</a>)}
     </nav>
     <main id="main">
-      {r === 'activities' ? (parts()[1] ? <ActivityPage key={parts()[1]} id={parts()[1]} /> : <ActivitiesPage />) : r === 'mileage' ? <MileagePage /> : r === 'today' || !known ? <TodayPage /> : r === 'settings' ? <Settings /> : r === 'load' ? <LoadPage /> : r === 'recovery' ? <RecoveryPage /> : r === 'intensity' ? <IntensityPage /> : r === 'dynamics' ? <DynamicsPage /> : <GoalsPage />}
+      {r === 'activities' ? (parts()[1] ? <ActivityPage key={parts()[1]} id={parts()[1]} /> : <ActivitiesPage />) : r === 'mileage' ? <MileagePage /> : r === 'records' ? <RecordsPage /> : r === 'today' || !known ? <TodayPage /> : r === 'settings' ? <Settings /> : r === 'load' ? <LoadPage /> : r === 'recovery' ? <RecoveryPage /> : r === 'intensity' ? <IntensityPage /> : r === 'dynamics' ? <DynamicsPage /> : <GoalsPage />}
     </main>
   </>
 }
