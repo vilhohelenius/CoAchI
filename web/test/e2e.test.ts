@@ -39,6 +39,23 @@ describe('frontend end to end', () => {
       expect(root.textContent, r).not.toMatch(/NaN|undefined/)
     }
   })
+  it('phone drawer lists every view and closes on Escape, theme toggle sets data-mode', async () => {
+    await settle()
+    const more = root.querySelector('.tabs button') as HTMLButtonElement
+    expect(root.querySelector('.drawer')).toBeNull()
+    more.click()
+    await vi.waitFor(() => expect(root.querySelector('.drawer [role=dialog]')).not.toBeNull())
+    expect(root.querySelectorAll('.drawer a').length).toBe(root.querySelectorAll('.side a').length)
+    dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await vi.waitFor(() => expect(root.querySelector('.drawer')).toBeNull())
+    const flip = () => (root.querySelector('.side .mode') as HTMLButtonElement).click()
+    flip() // auto -> light
+    await vi.waitFor(() => expect(root.querySelector('.side .mode')?.textContent).toContain('light'))
+    flip() // -> dark
+    await vi.waitFor(() => expect(document.documentElement.dataset.mode).toBe('dark'))
+    flip() // -> auto
+    await vi.waitFor(() => expect(root.querySelector('.side .mode')?.textContent).toContain('auto'))
+  })
   it('unknown route falls back to Today', async () => {
     location.hash = '#/nope'
     await vi.waitFor(() => expect(root.querySelector('.nav [aria-current]')?.textContent).toBe('Today'))

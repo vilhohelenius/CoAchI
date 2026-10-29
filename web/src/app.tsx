@@ -9,8 +9,9 @@ import { GoalsPage } from './goals'
 import { MileagePage } from './mileage'
 import { RecordsPage } from './records'
 import { ActivitiesPage, ActivityPage } from './activities'
+import { Nav, GROUPS } from './nav'
 
-const NAV = [['today', 'Today'], ['load', 'Load'], ['recovery', 'Recovery'], ['intensity', 'Intensity'], ['dynamics', 'Dynamics'], ['goals', 'Goals'], ['mileage', 'Mileage'], ['activities', 'Activities'], ['records', 'Records'], ['settings', 'Settings']] as const
+const NAMES = GROUPS.flatMap((g) => g[1].map((v) => v[0]))
 const parts = () => location.hash.replace(/^#\/?/, '').split('/')
 const route = () => parts()[0] || 'today'
 
@@ -21,13 +22,9 @@ export function App() {
     addEventListener('hashchange', f)
     return () => removeEventListener('hashchange', f)
   }, [])
-  useEffect(() => { document.querySelector('.nav [aria-current]')?.scrollIntoView?.({ inline: 'center', block: 'nearest' }) }, [r])
-  const known = NAV.some((n) => n[0] === r)
+  const known = NAMES.includes(r)
   return <>
-    <nav class="nav" aria-label="Main">
-      <b class="logo">CoAchI</b>
-      {NAV.map(([k, l]) => <a href={`#/${k}`} aria-current={r === k ? 'page' : undefined}>{l}</a>)}
-    </nav>
+    <Nav r={known ? r : 'today'} />
     <main id="main">
       {r === 'activities' ? (parts()[1] ? <ActivityPage key={parts()[1]} id={parts()[1]} /> : <ActivitiesPage />) : r === 'mileage' ? <MileagePage /> : r === 'records' ? <RecordsPage /> : r === 'today' || !known ? <TodayPage /> : r === 'settings' ? <Settings /> : r === 'load' ? <LoadPage /> : r === 'recovery' ? <RecoveryPage /> : r === 'intensity' ? <IntensityPage /> : r === 'dynamics' ? <DynamicsPage /> : <GoalsPage />}
     </main>
