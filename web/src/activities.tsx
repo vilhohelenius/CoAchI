@@ -3,6 +3,7 @@ import { useApi } from './api'
 import { LineChart, StackedBars } from './chart'
 import { DASH, day, dur, km, num, pace } from './fmt'
 import { DynamicsCard } from './dynamics'
+import { ShoeCard } from './shoes'
 import { Err, Page, Pill, Tile } from './today'
 import type { ActDetail, ActList, ActResp, ActRow, Lap } from './types'
 
@@ -161,6 +162,7 @@ export function ActivityView({ d }: { d: ActResp }) {
     <p class="sub"><a href="#/activities">All activities</a> · {day(a.start_local, { weekday: 'long', day: 'numeric', month: 'long' })} · {sportName(a.sport)}</p>
     <div class="glance">{tiles.map(([l, v, u, n]) => <Tile l={l} v={v} u={u || undefined} n={n || ' '} />)}</div>
     <div class="g2" style="margin-top:10px">
+      {run && <ShoeCard id={a.id} shoe={a.shoe_id ?? null} />}
       {gps && <Route pts={det!.route} />}
       {zt > 0 && <section class="card"><h3 class="ch">Time in heart rate zones</h3>
         <div class="stages" role="img" aria-label={`Zone minutes: ${z.map((s, i) => `zone ${i + 1} ${Math.round(s / 60)}`).join(', ')}`}>{z.map((s, i) => s > 0 && <i style={`flex:${s};background:${ZC[i]}`} />)}</div>

@@ -1,0 +1,8 @@
+{
+ "as_of": "2030-06-01T12:00:00.000Z",
+ "shoes": [
+  { "id": 1, "name": "Daily Trainer", "brand": "Acme", "default_for": "run", "start_km": 120, "retire_km": 800, "retired_on": null, "notes": null, "since": "2030-01-01", "km": 310.4, "runs": 31, "last_run": "2030-05-31", "alert": null },
+  { "id": 2, "name": "Tempo Racer", "brand": null, "default_for": null, "start_km": 0, "retire_km": 500, "retired_on": null, "notes": null, "since": "2030-01-01", "km": 462.5, "runs": 40, "last_run": "2030-05-20", "alert": "soon" },
+  { "id": 3, "name": "Old Faithful", "brand": "Acme", "default_for": null, "start_km": 0, "retire_km": 800, "retired_on": "2029-12-01", "notes": null, "since": "2029-01-01", "km": 823.1, "runs": 90, "last_run": "2029-11-30", "alert": null }
+ ]
+}

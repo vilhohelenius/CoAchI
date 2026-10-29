@@ -1,5 +1,5 @@
 // Read-only metric endpoints. Everything heavy is precomputed by `sync/run.ts recompute`, so these only read and reshape.
-import type { Hono } from 'hono'
+import type { Context, Hono } from 'hono'
 import type { DB, Env } from './index.js'
 import { addDays, diffDays, weekStart } from '../metrics/dates.js'
 import { sportOf } from '../metrics/load.js'
@@ -18,6 +18,9 @@ const SPORT_SQL: Record<string, string> = { run: "type LIKE '%running%'", bike: 
 const sportWhere = (s: string | undefined) => (s && SPORT_SQL[s] ? ` AND ${SPORT_SQL[s]}` : '')
 const LIST_COLS = 'id, start_local, type, name, distance_m, duration_s, elev_gain_m, avg_hr, load, fit_status'
 const km1 = (m: number) => Math.round(m / 100) / 10
+// Writes accept JSON only (a form post from another site cannot send this content type without a CORS preflight).
+const jsonBody = async (c: Context) => (c.req.header('content-type')?.includes('application/json') ? await c.req.json().catch(() => null) : null) as Record<string, unknown> | null
+const invalid = (c: Context) => (error: string) => c.json({ error, code: 'INVALID' }, 400)
 
 export function metricRoutes(app: App, now: () => number) {
   const asOf = () => new Date(now()).toISOString()
@@ -124,8 +127,7 @@ export function metricRoutes(app: App, now: () => number) {
   // Edit the three seeded goals in one statement. Progress in /api/goals is recomputed by the next sync.
   const RANGE = { year_km: [500, 6000], band_lo: [10, 150], band_hi: [10, 150], steps: [2000, 30000] } as const
   app.put('/api/goals', async (c) => {
-    const b = (c.req.header('content-type')?.includes('application/json') ? await c.req.json().catch(() => null) : null) as Record<string, unknown> | null
-    const bad = (error: string) => c.json({ error, code: 'INVALID' }, 400)
+    const b = await jsonBody(c), bad = invalid(c)
     if (!b || typeof b !== 'object') return bad('JSON body expected')
     for (const [k, [lo, hi]] of Object.entries(RANGE)) { const v = b[k]; if (typeof v !== 'number' || !Number.isFinite(v) || v < lo || v > hi) return bad(`${k} must be a number from ${lo} to ${hi}`) }
     if ((b.band_hi as number) <= (b.band_lo as number)) return bad('band_hi must be above band_lo')
@@ -204,6 +206,49 @@ export function metricRoutes(app: App, now: () => number) {
     return o ? new Response(o.body, { headers: { 'content-type': 'application/json', 'cache-control': 'private, max-age=300' } }) : c.json({ v: 1, runs: [] })
   })
 
+  // ---- shoes: entered by hand, Garmin sends no gear. Mileage is start_km + the assigned activities, computed here and never stored. ----
+  const isDate = (v: unknown) => typeof v === 'string' && /^\d{4}-\d\d-\d\d$/.test(v) && !Number.isNaN(Date.parse(v))
+  const within = (lo: number, hi: number) => (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi
+  const text = (max: number) => (v: unknown) => v === null || (typeof v === 'string' && v.length <= max)
+  const SHOE: Record<string, (v: unknown) => boolean> = { name: (v) => typeof v === 'string' && v.trim() !== '' && v.length <= 60, brand: text(60), notes: text(500),
+    default_for: (v) => v === null || v === 'run', start_km: within(0, 20000), retire_km: within(100, 3000), retired_on: (v) => v === null || isDate(v), since: isDate }
+  const SHOE_COLS = ['name', 'brand', 'default_for', 'start_km', 'retire_km', 'retired_on', 'notes', 'since']
+  const shoeError = (b: Record<string, unknown>) => { const k = Object.keys(b).find((x) => !SHOE[x]?.(b[x])); return k ? `${k} is not valid` : null }
+  // One default per sport: taking the role from the others keeps auto-assign unambiguous.
+  const takeDefault = (db: DB, s: Record<string, any>, id: number) => (s.default_for ? db.prepare('UPDATE shoes SET default_for=NULL WHERE default_for=? AND id != ?').bind(s.default_for, id).run() : null)
+
+  app.get('/api/shoes', async (c) => {
+    const rows = await q<any>(c.env.DB, `SELECT s.*, COUNT(a.id) runs, MAX(substr(a.start_local,1,10)) last_run, ROUND(s.start_km + COALESCE(SUM(a.distance_m),0) / 1000.0, 1) km
+      FROM shoes s LEFT JOIN activities a ON a.shoe_id = s.id GROUP BY s.id ORDER BY s.retired_on IS NOT NULL, s.id`)
+    return c.json({ as_of: asOf(), shoes: rows.map((r) => ({ ...r, alert: r.retired_on ? null : r.km >= r.retire_km ? 'over' : r.km >= 0.9 * r.retire_km ? 'soon' : null })) })
+  })
+
+  app.post('/api/shoes', async (c) => {
+    const b = await jsonBody(c), bad = invalid(c)
+    if (!b || Array.isArray(b)) return bad('JSON body expected')
+    const e = shoeError(b); if (e) return bad(e)
+    if (typeof b.name !== 'string') return bad('name is required')
+    const s: Record<string, any> = { brand: null, notes: null, default_for: null, start_km: 0, retire_km: 800, retired_on: null, since: asOf().slice(0, 10), ...b, name: b.name.trim() }
+    if (s.retired_on && s.default_for) return bad('a retired shoe cannot be the default')
+    await takeDefault(c.env.DB, s, 0)
+    const [r] = await q<{ id: number }>(c.env.DB, `INSERT INTO shoes (${SHOE_COLS}) VALUES (${SHOE_COLS.map(() => '?')}) RETURNING id`, ...SHOE_COLS.map((k) => s[k]))
+    return c.json({ ok: true, id: r.id }, 201)
+  })
+
+  app.patch('/api/shoes/:id', async (c) => {
+    const id = Number(c.req.param('id')), b = await jsonBody(c), bad = invalid(c)
+    const [cur] = Number.isInteger(id) ? await q<Record<string, any>>(c.env.DB, `SELECT ${SHOE_COLS} FROM shoes WHERE id=?`, id) : []
+    if (!cur) return c.json({ error: 'not found', code: 'NOT_FOUND' }, 404)
+    if (!b || Array.isArray(b) || !Object.keys(b).length) return bad('JSON body expected')
+    const e = shoeError(b); if (e) return bad(e)
+    const s = { ...cur, ...b }
+    if (typeof b.name === 'string') s.name = b.name.trim()
+    if (s.retired_on) { if (b.default_for) return bad('a retired shoe cannot be the default'); s.default_for = null }
+    await takeDefault(c.env.DB, s, id)
+    await c.env.DB.prepare(`UPDATE shoes SET ${SHOE_COLS.map((k) => `${k}=?`)} WHERE id=?`).bind(...SHOE_COLS.map((k) => s[k]), id).run()
+    return c.json({ ok: true })
+  })
+
   // ---- activities ----
   app.get('/api/activities', async (c) => {
     const limit = int(c.req.query('limit'), 30, 100), before = c.req.query('before'), sp = c.req.query('sport')
@@ -214,11 +259,21 @@ export function metricRoutes(app: App, now: () => number) {
 
   app.get('/api/activities/:id', async (c) => {
     const id = Number(c.req.param('id')), db = c.env.DB
-    const [a] = Number.isInteger(id) ? await q<any>(db, `SELECT ${LIST_COLS}, moving_s, max_hr, avg_cadence, avg_power, norm_power, aero_te, anaero_te, load_source, rpe, feel, hr_z1_s, hr_z2_s, hr_z3_s, hr_z4_s, hr_z5_s, temp_c, avg_stride_m, avg_vert_osc_mm, avg_vert_ratio, avg_gct_ms, avg_gct_balance FROM activities WHERE id=?`, id) : []
+    const [a] = Number.isInteger(id) ? await q<any>(db, `SELECT ${LIST_COLS}, moving_s, max_hr, avg_cadence, avg_power, norm_power, aero_te, anaero_te, load_source, rpe, feel, hr_z1_s, hr_z2_s, hr_z3_s, hr_z4_s, hr_z5_s, temp_c, avg_stride_m, avg_vert_osc_mm, avg_vert_ratio, avg_gct_ms, avg_gct_balance, shoe_id FROM activities WHERE id=?`, id) : []
     if (!a) return c.json({ error: 'not found', code: 'NOT_FOUND' }, 404)
     const laps = await q(db, 'SELECT lap_idx, step_type, set_no, rep_no, duration_s, distance_m, avg_speed_mps, avg_hr, max_hr, avg_power, avg_cadence, ascent_m, avg_stride_m, avg_vert_osc_mm, avg_vert_ratio, avg_gct_ms, avg_gct_balance FROM activity_steps WHERE activity_id=? ORDER BY lap_idx', id)
     // Charts, route, splits, EF and decoupling are precomputed by the sync fit stage into detail/{id}.json
     const detail = a.fit_status === 'ok' ? await c.env.FIT?.get(`detail/${id}.json`).then((o) => o?.json() ?? null).catch(() => null) ?? null : null
     return c.json({ as_of: asOf(), activity: { ...a, sport: sportOf(a.type ?? '') }, laps, detail })
+  })
+
+  // Only the shoe can be changed here. A run left without a shoe gets the default again at the next sync.
+  app.patch('/api/activities/:id', async (c) => {
+    const id = Number(c.req.param('id')), b = await jsonBody(c), bad = invalid(c), sid = b?.shoe_id
+    if (!b || Object.keys(b).join() !== 'shoe_id' || (sid !== null && !Number.isInteger(sid))) return bad('JSON body {"shoe_id": id or null} expected')
+    if (!Number.isInteger(id) || !(await q(c.env.DB, 'SELECT 1 FROM activities WHERE id=?', id)).length) return c.json({ error: 'not found', code: 'NOT_FOUND' }, 404)
+    if (sid !== null && !(await q(c.env.DB, 'SELECT 1 FROM shoes WHERE id=?', sid)).length) return bad('unknown shoe')
+    await c.env.DB.prepare('UPDATE activities SET shoe_id=? WHERE id=?').bind(sid, id).run()
+    return c.json({ ok: true })
   })
 }

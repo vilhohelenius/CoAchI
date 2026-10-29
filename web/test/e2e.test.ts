@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs'
 const fx = (n: string) => readFileSync(`web/fixtures/${n}.json`, 'utf8')
 const fixtureFor = (u: URL) => {
   const by = u.searchParams.get('by'), p = u.pathname
-  return p === '/api/mileage' ? `mileage-${by === 'month' || by === 'year' ? by : 'week'}` : p === '/api/mileage/compare' ? 'mileage-compare' : p === '/api/activities' ? 'activities' : p === '/api/steps' ? 'steps' : p === '/api/records' ? 'records' : p === '/api/routes' ? 'routes' : p === '/api/fitness-estimates' ? 'fitness-estimates'
+  return p === '/api/mileage' ? `mileage-${by === 'month' || by === 'year' ? by : 'week'}` : p === '/api/mileage/compare' ? 'mileage-compare' : p === '/api/activities' ? 'activities' : p === '/api/steps' ? 'steps' : p === '/api/records' ? 'records' : p === '/api/routes' ? 'routes' : p === '/api/shoes' ? 'shoes' : p === '/api/fitness-estimates' ? 'fitness-estimates'
     : /^\/api\/activities\/\d+$/.test(p) ? (p.endsWith('/97') ? 'activity-strength' : 'activity-run') : /^\/api\/(today|goals|load|recovery|intensity|dynamics)$/.exec(p)?.[1]
 }
 let fail: (u: URL) => boolean, root: HTMLElement
@@ -32,7 +32,7 @@ afterEach(() => { render(null, root); root.remove(); vi.unstubAllGlobals() })
 describe('frontend end to end', () => {
   it('every route renders data and the nav marks the current page', async () => {
     await settle()
-    for (const r of ['today', 'load', 'recovery', 'intensity', 'dynamics', 'goals', 'mileage', 'steps', 'records', 'heatmap', 'activities', 'activities/100', 'activities/97', 'settings']) {
+    for (const r of ['today', 'load', 'recovery', 'intensity', 'dynamics', 'goals', 'mileage', 'steps', 'records', 'heatmap', 'shoes', 'activities', 'activities/100', 'activities/97', 'settings']) {
       await go(`#/${r}`)
       expect(root.querySelector('h1')?.textContent, r).toBeTruthy()
       expect(root.querySelector('.err'), r).toBeNull()
@@ -77,6 +77,20 @@ describe('frontend end to end', () => {
     btn.click()
     await vi.waitFor(() => expect(n()).toBe(3))
     expect(root.querySelector('.seg [aria-pressed=true]')?.textContent).toBe('2029')
+  })
+  it('shoes page lists cards and the retired one, the picker on a run saves with PATCH', async () => {
+    await go('#/shoes')
+    expect(root.querySelectorAll('.card .big').length).toBe(3)
+    expect(root.textContent).toContain('Nearly worn out'); expect(root.textContent).toContain('Retired')
+    const calls: [string, string, string][] = []
+    const real = fetch
+    vi.stubGlobal('fetch', async (u: string, i?: RequestInit) => { if (i?.method) { calls.push([u, i.method, String(i.body)]); return Response.json({ ok: true }) } return real(u, i) })
+    await go('#/activities/100')
+    const sel = await vi.waitFor(() => { const e = root.querySelector('select'); expect(e).toBeTruthy(); return e as HTMLSelectElement })
+    expect([...sel.options].map((o) => o.textContent)).toEqual(['No shoe', 'Daily Trainer', 'Tempo Racer']) // retired shoes are not offered
+    sel.value = '2'; sel.dispatchEvent(new Event('change'))
+    await vi.waitFor(() => expect(calls).toEqual([['/api/activities/100', 'PATCH', '{"shoe_id":2}']]))
+    await vi.waitFor(() => expect(root.textContent).toContain('of 500 km'))
   })
   it('unknown route falls back to Today', async () => {
     location.hash = '#/nope'

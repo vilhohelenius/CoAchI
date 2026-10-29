@@ -47,7 +47,7 @@ export type ActDetail = { str?: (number | null)[]; vo?: (number | null)[]; vr?: 
   route: [number, number][]; splits: { km: number; s: number; hr: number | null }[]; ef: number | null; decoupling: number | null; why: 'ok' | 'no_hr' | 'short' | 'variable' }
 export type ActResp = { as_of: string; activity: ActRow & { moving_s: number | null; max_hr: number | null; avg_cadence: number | null; avg_power: number | null; norm_power: number | null; aero_te: number | null; anaero_te: number | null
   load_source: string | null; rpe: number | null; feel: number | null; hr_z1_s: number | null; hr_z2_s: number | null; hr_z3_s: number | null; hr_z4_s: number | null; hr_z5_s: number | null; temp_c: number | null
-  avg_stride_m?: number | null; avg_vert_osc_mm?: number | null; avg_vert_ratio?: number | null; avg_gct_ms?: number | null; avg_gct_balance?: number | null }
+  avg_stride_m?: number | null; avg_vert_osc_mm?: number | null; avg_vert_ratio?: number | null; avg_gct_ms?: number | null; avg_gct_balance?: number | null; shoe_id?: number | null }
   laps: Lap[]; detail: ActDetail | null }
 
 type DynPoint = { avg: number; n: number } | null
@@ -66,3 +66,7 @@ export type StepsResp = { as_of: string; goal: number | null; days: { date: stri
 /** routes/all.json: [id, date, distance_m, duration_s, [startLat, startLon], flat lat/lon list] */
 export type { RouteRun }
 export type RoutesResp = { v: number; runs: RouteRun[] }
+
+export type Shoe = { id: number; name: string; brand: string | null; default_for: 'run' | null; start_km: number; retire_km: number; retired_on: string | null; notes: string | null; since: string
+  km: number; runs: number; last_run: string | null; alert: 'soon' | 'over' | null }
+export type ShoesResp = { as_of: string; shoes: Shoe[] }

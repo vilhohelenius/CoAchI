@@ -83,6 +83,23 @@ Statuses are pace words and never pass or fail. Year and steps use `ahead`, `on_
 
 `{ "year_km": 2000, "band_lo": 50, "band_hi": 60, "steps": 10000 }`, JSON only (`content-type: application/json`), all four numbers required. Ranges: `year_km` 500 to 6000, `band_lo` and `band_hi` 10 to 150 with `band_hi` above `band_lo`, `steps` 2000 to 30000. Updates the active distance, weekly_km and steps goals in one statement and answers `{ "ok": true }`. Anything invalid answers 400 `{ error, code: "INVALID" }`. The `goals` list in `GET /api/goals` changes at once, `progress` follows the next recompute (the next sync).
 
+## GET /api/shoes, POST /api/shoes, PATCH /api/shoes/:id
+
+```json
+{ "as_of": "...", "shoes": [ { "id": 1, "name": "Daily Trainer", "brand": "Acme", "default_for": "run", "start_km": 120, "retire_km": 800, "retired_on": null, "notes": null, "since": "2030-01-01",
+    "km": 310.4, "runs": 31, "last_run": "2030-05-31", "alert": null } ] }
+```
+
+Shoes are entered by hand. `km` is `start_km` plus the distance of the activities assigned to the shoe, computed on every read and never stored. `alert` is `soon` from 90% of `retire_km`, `over` from 100%, and `null` for a retired shoe. Active shoes come first, then retired ones.
+
+Writes are JSON only, like `PUT /api/goals`. `POST` takes `name` (required, up to 60 characters) and optionally `brand`, `notes`, `default_for` (`"run"` or `null`), `start_km` (0 to 20000, default 0), `retire_km` (100 to 3000, default 800), `retired_on` and `since` (dates `YYYY-MM-DD`; `since` defaults to today) and answers 201 `{ ok, id }`. `PATCH` takes any subset of the same fields, and 404 for an unknown id. Unknown or invalid fields answer 400 `{ error, code: "INVALID" }`. Only one shoe holds `default_for`, giving it to a shoe takes it from the others. A retired shoe cannot be the default, retiring clears it.
+
+The sync gives runs that have no shoe the default shoe (`default_for = 'run'`, not retired) when their date is on or after the shoe's `since`, so older history stays without a shoe until you set it by hand. A shoe set on a run is never overwritten. `sync upload` skips the `shoes` table and `activities.shoe_id`, the remote copy is the truth.
+
+## PATCH /api/activities/:id
+
+`{ "shoe_id": 1 }` or `{ "shoe_id": null }`, JSON only. It is the only field accepted. 400 for any other body or an unknown shoe, 404 for an unknown activity. `GET /api/activities/:id` returns `shoe_id` in `activity`. A run set to `null` gets the default shoe again at the next sync.
+
 ## GET /api/steps?days=28
 
 ```json

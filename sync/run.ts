@@ -9,7 +9,7 @@ import { uploadDb, uploadFiles } from './upload.js'
 import { recompute } from './recompute.js'
 import { recordsStage } from './records.js'
 import { routesStage } from './routes.js'
-import { Ctx, backfill, detailStage, fitStage, steadyActivities, steadyWellness, zones } from './stages.js'
+import { Ctx, assignShoes, backfill, detailStage, fitStage, steadyActivities, steadyWellness, zones } from './stages.js'
 
 const args = process.argv.slice(2)
 const mode = args[0] ?? 'steady'
@@ -84,8 +84,8 @@ const c: Ctx = { g, db, today: localToday(), outDir, deadline: Date.now() + budg
 
 try {
   await setState(db, 'run_started_at', String(Date.now()))
-  if (mode === 'steady') { await steadyActivities(c); await steadyWellness(c, Number(process.env.DAYS ?? 3)); await zones(c); await fitStage(c); await recompute(db, c.today, args.includes('--full')); await recordsStage(db, c.today, outDir); if (!remote) await routesStage(db, outDir) }
-  else if (mode === 'backfill') { const r = await backfill(c); log('backfill', { status: r }); if (r === 'done') { await fitStage(c); await recompute(db, c.today, true); await recordsStage(db, c.today, outDir) } }
+  if (mode === 'steady') { await steadyActivities(c); await steadyWellness(c, Number(process.env.DAYS ?? 3)); await zones(c); await fitStage(c); await assignShoes(db); await recompute(db, c.today, args.includes('--full')); await recordsStage(db, c.today, outDir); if (!remote) await routesStage(db, outDir) }
+  else if (mode === 'backfill') { const r = await backfill(c); log('backfill', { status: r }); if (r === 'done') { await fitStage(c); await assignShoes(db); await recompute(db, c.today, true); await recordsStage(db, c.today, outDir) } }
   else if (mode === 'fit') await fitStage(c)
   else throw new Error('mode')
   await setState(db, 'last_sync_ok', String(Date.now()))

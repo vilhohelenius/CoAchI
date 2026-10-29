@@ -24,6 +24,8 @@ import { StepsView } from '../src/steps'
 import steps from '../fixtures/steps.json'
 import goals from '../fixtures/goals.json'
 import { HeatmapView } from '../src/heatmap'
+import { ShoesView } from '../src/shoes'
+import shoes from '../fixtures/shoes.json'
 import routes from '../fixtures/routes.json'
 
 const text = (html: string) => html.replace(/<[^>]*>/g, ' ')
@@ -132,6 +134,14 @@ describe('page renders', () => {
     for (const n of html.match(/[ML]-?\d+\.\d/g)!.map((x) => Number(x.slice(1)))) { expect(n).toBeGreaterThanOrEqual(-1); expect(n).toBeLessThanOrEqual(801) }
     clean(html)
     expect(render(h(HeatmapView, { d: { v: 1, runs: [] } }))).toContain('No routes yet')
+  })
+  it('Shoes: cards, alert, retired list, empty state', () => {
+    const html = render(h(ShoesView, { d: shoes as never, reload: noop }))
+    for (const x of ['Daily Trainer', 'Used for new runs', '310<small> of 800 km', 'Nearly worn out', 'Retired', 'Old Faithful', 'Add a shoe', 'last on 31 May 2030']) expect(html).toContain(x)
+    clean(html)
+    const none = render(h(ShoesView, { d: { as_of: 'x', shoes: [] }, reload: noop }))
+    expect(none).toContain('No shoes yet'); expect(none).toContain('Add a shoe'); clean(none)
+    expect(render(h(ShoesView, { d: { as_of: 'x', shoes: [{ ...shoes.shoes[0], alert: 'over', runs: 1, last_run: null }] } as never, reload: noop }))).toContain('Time to retire')
   })
   it('Records and predictions, normal and null-heavy', () => {
     const html = render(h(RecordsView, { d: recs as never, sel: '5k', setSel: noop }))

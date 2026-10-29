@@ -4,6 +4,7 @@ import { createApp, daysLeft, watchdog, type Env } from '../src/worker/index.js'
 import { resetJwksCache } from '../src/worker/access.js'
 import { LocalStore } from '../sync/store.js'
 import { recompute } from '../sync/recompute.js'
+import { assignShoes } from '../sync/stages.js'
 import { recordsStage } from '../sync/records.js'
 import { R2 } from '../sync/r2.js'
 import { D1Store } from '../sync/store.js'
@@ -329,5 +330,85 @@ describe('static assets', () => {
     expect(seen).toEqual(['/today/deep'])
     expect((await req(app, e, '/api/nope', 'GET', await tok())).status).toBe(404)
     expect(seen).toHaveLength(1)
+  })
+})
+
+describe('shoes', () => {
+  const send = async (m: ReturnType<typeof mk>, path: string, method: string, body?: unknown, t?: string, ct = 'application/json') =>
+    m.app.request(path, { method, headers: { 'content-type': ct, ...(t ? { 'Cf-Access-Jwt-Assertion': t } : {}) }, body: typeof body === 'string' ? body : JSON.stringify(body) }, m.env)
+  const run = (m: ReturnType<typeof mk>, id: number, date: string, dist: number, type = 'running', shoe: number | null = null) =>
+    m.l.batch([['INSERT INTO activities (id,start_local,type,distance_m) VALUES (?,?,?,?)', [id, `${date} 07:00:00`, type, dist]], ...(shoe ? [['UPDATE activities SET shoe_id=? WHERE id=?', [shoe, id]] as [string, unknown[]]] : [])])
+  const list = async (m: ReturnType<typeof mk>) => ((await (await req(m.app, m.env, '/api/shoes', 'GET', await tok())).json()) as any).shoes
+
+  it('writes need Access and a JSON body; fields are validated', async () => {
+    const m = mk(), t = await tok()
+    expect((await send(m, '/api/shoes', 'POST', { name: 'Test Shoe' })).status).toBe(401)
+    expect((await req(m.app, m.env, '/api/shoes')).status).toBe(401)
+    for (const b of [{}, { name: '' }, { name: ' ' }, { name: 'x'.repeat(61) }, { name: 'A', start_km: -1 }, { name: 'A', retire_km: 50 }, { name: 'A', retire_km: '800' }, { name: 'A', default_for: 'bike' },
+      { name: 'A', since: '2030-13-45' }, { name: 'A', retired_on: '2030-06-01', default_for: 'run' }, { name: 'A', id: 5 }, [], 'nope']) expect((await send(m, '/api/shoes', 'POST', b, t)).status, JSON.stringify(b)).toBe(400)
+    expect((await send(m, '/api/shoes', 'POST', { name: 'A' }, t, 'text/plain')).status).toBe(400)
+    expect(await list(m)).toEqual([])
+    const r = await send(m, '/api/shoes', 'POST', { name: ' Daily Test ', brand: 'Acme', start_km: 120.5 }, t)
+    expect(r.status).toBe(201); const { id } = (await r.json()) as any
+    expect(await list(m)).toMatchObject([{ id, name: 'Daily Test', brand: 'Acme', start_km: 120.5, retire_km: 800, default_for: null, retired_on: null, since: '2030-06-01', km: 120.5, runs: 0, alert: null }])
+    for (const b of [{}, { name: '' }, { retire_km: 5000 }, { nope: 1 }, { retired_on: '2030-06-01', default_for: 'run' }]) expect((await send(m, `/api/shoes/${id}`, 'PATCH', b, t)).status, JSON.stringify(b)).toBe(400)
+    expect((await send(m, '/api/shoes/999', 'PATCH', { name: 'B' }, t)).status).toBe(404)
+    expect((await send(m, `/api/shoes/${id}`, 'PATCH', { name: 'B' })).status).toBe(401)
+  })
+
+  it('mileage is start_km plus assigned activities, the alert follows retire_km, only one default', async () => {
+    const m = mk(), t = await tok()
+    const a = ((await (await send(m, '/api/shoes', 'POST', { name: 'One', start_km: 100, retire_km: 200, default_for: 'run' }, t)).json()) as any).id
+    const b = ((await (await send(m, '/api/shoes', 'POST', { name: 'Two', default_for: 'run' }, t)).json()) as any).id
+    expect((await list(m)).map((s: any) => [s.name, s.default_for])).toEqual([['One', null], ['Two', 'run']]) // the newer default took the role
+    await run(m, 1, '2030-05-01', 40000, 'running', a); await run(m, 2, '2030-05-02', 40400, 'running', a); await run(m, 3, '2030-05-03', 10000, 'running', b); await run(m, 4, '2030-05-04', 5000)
+    let s = await list(m)
+    expect(s[0]).toMatchObject({ name: 'One', km: 180.4, runs: 2, last_run: '2030-05-02', alert: 'soon' }); expect(s[1]).toMatchObject({ name: 'Two', km: 10, runs: 1, alert: null })
+    await run(m, 5, '2030-05-05', 20000, 'running', a)
+    expect((await list(m))[0]).toMatchObject({ km: 200.4, alert: 'over' })
+    // retiring clears the default, drops the alert and sorts the shoe last
+    expect((await send(m, `/api/shoes/${a}`, 'PATCH', { retired_on: '2030-05-06' }, t)).status).toBe(200)
+    s = await list(m)
+    expect(s.map((x: any) => [x.name, x.retired_on, x.alert])).toEqual([['Two', null, null], ['One', '2030-05-06', null]])
+    expect((await send(m, `/api/shoes/${a}`, 'PATCH', { default_for: 'run' }, t)).status).toBe(400)
+    expect((await send(m, `/api/shoes/${a}`, 'PATCH', { retired_on: null, default_for: 'run' }, t)).status).toBe(200)
+    expect((await list(m)).map((x: any) => [x.name, x.default_for])).toEqual([['One', 'run'], ['Two', null]])
+  })
+
+  it('PATCH /api/activities/:id sets the shoe, the detail returns it', async () => {
+    const m = mk(), t = await tok()
+    const id = ((await (await send(m, '/api/shoes', 'POST', { name: 'One' }, t)).json()) as any).id
+    await run(m, 7, '2030-05-07', 5000)
+    const patch = (aid: string | number, b: unknown, tok?: string) => send(m, `/api/activities/${aid}`, 'PATCH', b, tok)
+    expect((await patch(7, { shoe_id: id })).status).toBe(401)
+    for (const b of [{}, { shoe_id: 'x' }, { shoe_id: 1.5 }, { shoe_id: id, name: 'x' }, { name: 'x' }, { shoe_id: 99 }]) expect((await patch(7, b, t)).status, JSON.stringify(b)).toBe(400)
+    expect((await patch(8, { shoe_id: id }, t)).status).toBe(404); expect((await patch('x', { shoe_id: id }, t)).status).toBe(404)
+    expect((await patch(7, { shoe_id: id }, t)).status).toBe(200)
+    expect(((await (await req(m.app, m.env, '/api/activities/7', 'GET', t)).json()) as any).activity.shoe_id).toBe(id)
+    expect((await list(m))[0]).toMatchObject({ km: 5, runs: 1 })
+    expect((await patch(7, { shoe_id: null }, t)).status).toBe(200)
+    expect((await list(m))[0]).toMatchObject({ km: 0, runs: 0 })
+  })
+
+  it('the sync assigns the default shoe to runs without one from its start date, never overrides', async () => {
+    const m = mk(), t = await tok()
+    const a = ((await (await send(m, '/api/shoes', 'POST', { name: 'One', since: '2030-05-10' }, t)).json()) as any).id
+    const b = ((await (await send(m, '/api/shoes', 'POST', { name: 'Two', default_for: 'run', since: '2030-05-10' }, t)).json()) as any).id
+    await run(m, 1, '2030-05-09', 5000); await run(m, 2, '2030-05-10', 5000); await run(m, 3, '2030-05-11', 5000, 'running', a); await run(m, 4, '2030-05-12', 5000, 'road_biking'); await run(m, 5, '2030-05-13', 5000)
+    await assignShoes(m.l)
+    expect(await m.l.all('SELECT id, shoe_id FROM activities ORDER BY id')).toEqual([{ id: 1, shoe_id: null }, { id: 2, shoe_id: b }, { id: 3, shoe_id: a }, { id: 4, shoe_id: null }, { id: 5, shoe_id: b }])
+    await send(m, `/api/shoes/${b}`, 'PATCH', { retired_on: '2030-05-14' }, t); await run(m, 6, '2030-05-15', 5000)
+    await assignShoes(m.l)
+    expect((await m.l.all<any>('SELECT shoe_id FROM activities WHERE id=6'))[0].shoe_id).toBeNull() // retired shoes get nothing new
+  })
+
+  it('upload leaves shoes and shoe assignments alone', async () => {
+    const local = new LocalStore(':memory:'); local.migrate('migrations')
+    const remote = new LocalStore(':memory:'); remote.migrate('migrations')
+    await remote.batch([["INSERT INTO shoes (id,name,since) VALUES (1,'Remote One','2030-01-01')"], ["INSERT INTO activities (id,start_local,type,shoe_id) VALUES (1,'2030-01-02 07:00:00','running',1)"]])
+    await local.batch([["INSERT INTO activities (id,start_local,type,distance_m) VALUES (1,'2030-01-02 07:00:00','running',5000)"]])
+    await uploadDb(local, remote)
+    expect(await remote.all('SELECT id, distance_m, shoe_id FROM activities')).toEqual([{ id: 1, distance_m: 5000, shoe_id: 1 }])
+    expect((await remote.all('SELECT name FROM shoes')).length).toBe(1)
   })
 })

@@ -96,6 +96,12 @@ export async function zones(c: Ctx) {
   log('zones', { added })
 }
 
+/** Gives runs without a shoe the default running shoe, from the day it was added (shoes.since) on. Never touches a shoe set by hand. */
+export async function assignShoes(db: Store) {
+  await db.batch([[`UPDATE activities SET shoe_id = (SELECT s.id FROM shoes s WHERE s.default_for='run' AND s.retired_on IS NULL AND substr(activities.start_local,1,10) >= s.since ORDER BY s.id LIMIT 1)
+    WHERE shoe_id IS NULL AND type LIKE '%running%'`]])
+}
+
 /** Laps and running dynamics averages of one parsed FIT. Shared by the fit stage and the offline rebuild. */
 const parsedStmts = (id: number, p: Parsed): Stmt[] => [
   ['DELETE FROM activity_steps WHERE activity_id=?', [id]],
