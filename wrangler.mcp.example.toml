@@ -1,0 +1,24 @@
+# Copy to wrangler.mcp.toml (gitignored) and fill in. No real ids belong in this file.
+# Deploy: CLOUDFLARE_ACCOUNT_ID=<id> npx wrangler deploy -c wrangler.mcp.toml
+name = "coachi-mcp"
+main = "src/mcp/index.ts"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+# Same D1 database and R2 bucket as the main Worker.
+[[d1_databases]]
+binding = "DB"
+database_name = "coachi"
+database_id = "<D1_DATABASE_ID>"
+
+[[r2_buckets]]
+binding = "FIT"
+bucket_name = "<R2_BUCKET>"
+
+[[kv_namespaces]]
+binding = "OAUTH_KV"
+id = "<KV_NAMESPACE_ID>"
+
+# Secrets, set with wrangler secret put -c wrangler.mcp.toml:
+#   ACCESS_CLIENT_ID, ACCESS_CLIENT_SECRET, ACCESS_TOKEN_URL, ACCESS_AUTHORIZATION_URL, ACCESS_JWKS_URL, ALLOWED_EMAIL
+# No Access policy goes in front of this Worker: the OAuth endpoints must be reachable by Claude.

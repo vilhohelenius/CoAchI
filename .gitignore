@@ -17,3 +17,4 @@ wrangler.toml
 # local design mocks, not part of the public repo
 design/
 web/dist/
+wrangler.mcp.toml
