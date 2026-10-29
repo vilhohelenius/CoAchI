@@ -1,0 +1,32 @@
+name: sync
+# Manual only until phase 2 is verified in production. Then uncomment the schedule.
+# Never use pull_request_target here. No artifacts, caches or job summaries (public logs).
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: "17 */3 * * *"
+permissions:
+  contents: read
+concurrency:
+  group: sync
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    environment: prod
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - run: npm ci --no-audit --no-fund --loglevel=error
+      - run: npx tsx sync/run.ts steady --target remote
+        env:
+          GARMIN_API_KEY: ${{ secrets.GARMIN_API_KEY }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}

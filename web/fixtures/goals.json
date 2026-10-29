@@ -1,0 +1,6 @@
+{ "as_of": "2030-06-01T12:00:00.000Z", "data_date": "2030-06-01",
+  "goals": [ { "id": 1, "kind": "distance", "title": "Yearly distance", "target_value": 2000, "target_max": null, "unit": "km", "target_date": null, "status": "active" } ],
+  "progress": {
+    "year": { "target_km": 2000, "ytd_km": 800.2, "expected_km": 832.9, "diff_km": -32.7, "status": "on_pace", "projected_km": 1960.4, "avg_week_km_8w": 52.1 },
+    "week": { "band_lo": 50, "band_hi": 60, "week_start": "2030-05-27", "km": 36.7, "status": "ahead", "previous": [ { "week_start": "2030-05-20", "km": 55.0, "status": "in_band" } ] },
+    "steps": { "goal": 10000, "today": 6400, "streak_days": 4, "today_pending": true, "hit_30d": 21, "avg_7d": 10400, "avg_30d": 9800, "status": "on_pace" } } }

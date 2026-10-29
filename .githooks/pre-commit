@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+gitleaks protect --staged --redact --no-banner
+scripts/check-personal.sh

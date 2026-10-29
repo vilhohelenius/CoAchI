@@ -1,0 +1,31 @@
+{
+  "name": "coachi",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "sync": "tsx sync/run.ts",
+    "web:dev": "vite --config web/vite.config.ts",
+    "web:build": "vite build --config web/vite.config.ts"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@garmin/fitsdk": "^21.218.0",
+    "aws4fetch": "^1.0.20",
+    "fflate": "^0.8.3",
+    "hono": "^4.13.14",
+    "preact": "^11.1.0"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
+    "@types/node": "^26.6.6",
+    "preact-render-to-string": "^6.8.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}

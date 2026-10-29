@@ -1,0 +1,27 @@
+# Copy to wrangler.toml (gitignored) and fill in. No real ids belong in this file.
+name = "coachi"
+main = "src/worker/index.ts"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[triggers]
+crons = ["0 */6 * * *"] # watchdog
+
+[[d1_databases]]
+binding = "DB"
+database_name = "coachi"
+database_id = "<D1_DATABASE_ID>"
+
+[vars]
+ACCESS_TEAM_DOMAIN = "<team>.cloudflareaccess.com"
+ACCESS_AUD = "<Access application AUD tag>"
+GITHUB_REPO = "<owner>/<repo>"
+GARMIN_KEY_EXPIRES = "YYYY-MM-DD"
+PAT_EXPIRES = "YYYY-MM-DD"
+# Secret, set with wrangler secret put: GITHUB_DISPATCH_TOKEN
+
+[assets]
+directory = "web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = true # all paths hit the Worker so Access is always checked

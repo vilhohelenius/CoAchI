@@ -1,0 +1,19 @@
+.dev.vars
+.env*
+.samples/
+.personal-strings
+*.fit
+*.zip
+*.gpx
+*.sql
+!migrations/*.sql
+*.sqlite
+.wrangler/
+exports/
+node_modules/
+.DS_Store
+wrangler.toml
+
+# local design mocks, not part of the public repo
+design/
+web/dist/
