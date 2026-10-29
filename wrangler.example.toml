@@ -23,6 +23,8 @@ GITHUB_REPO = "<owner>/<repo>"
 GARMIN_KEY_EXPIRES = "YYYY-MM-DD"
 PAT_EXPIRES = "YYYY-MM-DD"
 # Secret, set with wrangler secret put: GITHUB_DISPATCH_TOKEN
+# Optional coach: secret ANTHROPIC_API_KEY (absent = coach off), vars COACH_MODEL (default claude-haiku-4-5-20251001), COACH_MONTHLY_USD_CAP (default 5)
+# COACH_MONTHLY_USD_CAP = "5"
 
 [assets]
 directory = "web/dist"
