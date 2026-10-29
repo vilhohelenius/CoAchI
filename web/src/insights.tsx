@@ -19,17 +19,17 @@ const lo = (xs: Num[]) => { const v = nums(xs); return v.length ? Math.min(...v)
 
 /** The card with the "Explain this" button. The text is fixed wording filled with today's numbers. With the coach on, the Worker rewrites it in plain words (cached per day) and the fixed text stays as the fallback. */
 export function Explain({ title, items, style, children }: { title: string; items: [string, string][]; style?: string; children?: ComponentChildren }) {
-  const [open, setOpen] = useState(false), [ai, setAi] = useState<string | null>(null), on = useContext(CoachOn), id = 'x-' + title.replace(/\W+/g, '-').toLowerCase()
+  const [open, setOpen] = useState(false), [ai, setAi] = useState<string | null>(null), [lim, setLim] = useState(false), on = useContext(CoachOn), id = 'x-' + title.replace(/\W+/g, '-').toLowerCase()
   const ask = async (regenerate: boolean) => {
     const metric = `${location.hash.replace(/^#\/?/, '')}:${title}`.slice(0, 80), template = items.map(([h, p]) => `${h}. ${p}`).join('\n')
     const r = await fetch('/api/explain', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ metric, date: new Date().toISOString().slice(0, 10), template, regenerate }) }).then((x) => (x.ok ? x.json() : null)).catch(() => null)
-    setAi(r?.text && r.source !== 'template' ? r.text : null)
+    setAi(r?.text && r.source !== 'template' ? r.text : null); setLim(!!r?.limited)
   }
   const toggle = () => { setOpen(!open); if (!open && on && ai === null) ask(false) }
   return <section class="card" style={style}>
     <div class="k"><b>{title}</b><button type="button" class="xp" aria-expanded={open} aria-controls={id} onClick={toggle}>Explain this</button></div>
     {open && <div class="ex" id={id}>{ai ? <p>{ai}</p> : items.map(([h, p]) => <><h4>{h}</h4><p>{p}</p></>)}
-      <div class="exf"><span>{ai ? "Rewritten by the coach model from today's numbers." : "Written from today's numbers."}</span>{on && <button type="button" class="xp" onClick={() => ask(true)}>Regenerate</button>}</div></div>}
+      <div class="exf"><span>{lim ? 'Regenerate limit reached for today (5 per card).' : ai ? "Rewritten by the coach model from today's numbers." : "Written from today's numbers."}</span>{on && <button type="button" class="xp" onClick={() => ask(true)}>Regenerate</button>}</div></div>}
     {children}
   </section>
 }
