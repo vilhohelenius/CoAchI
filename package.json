@@ -5,6 +5,7 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "reconcile": "tsx scripts/reconcile.ts",
     "sync": "tsx sync/run.ts",
     "web:dev": "vite --config web/vite.config.ts",
     "web:build": "vite build --config web/vite.config.ts"
@@ -23,6 +24,7 @@
   "devDependencies": {
     "@preact/preset-vite": "^2.10.6",
     "@types/node": "^26.6.6",
+    "happy-dom": "^21.0.4",
     "preact-render-to-string": "^6.8.2",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
