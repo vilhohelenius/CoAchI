@@ -187,7 +187,7 @@ h2.sh{display:flex;justify-content:space-between;align-items:baseline}h2.sh a{fo
 .days7 a{background:var(--soft);border-radius:var(--r2);padding:8px 2px;min-width:0;color:inherit;text-decoration:none}.days7 a:hover{background:var(--tint)}.days7 a.on{outline:2px solid var(--link);outline-offset:-2px}
 .days7 .thumb{display:block;width:100%;height:36px;margin:2px 0}.days7 .thumb path{fill:none;stroke:var(--route);stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
 /* logo letters */
-.logo i{font-style:normal}.logo i:first-of-type{color:var(--link)}.logo i:last-of-type{color:var(--b1)}
+.logo i{font-style:normal;color:var(--link)}
 /* coach page */
 .cgrid{display:grid;gap:10px;align-items:start}
 @media(min-width:900px){.cgrid{grid-template-columns:5fr 7fr}.cgrid>.chat{grid-column:2;grid-row:1/4}}
@@ -213,3 +213,9 @@ svg.cv text{font-size:13px}svg.cv text.au{font-weight:600;font-size:12px}
 
 /* readiness word colour follows the band */
 .rn .st.l0{color:var(--bad)}.rn .st.l1{color:var(--warn)}
+
+/* layout repairs: block siblings in main get the grid gap (they touched), and a stack inside a g2 column is one column with no offset */
+main>:is(.card,.g2,.g3,.pg,.stk,.sgrid,.cgrid,.glance,.car)+:is(.card,.g2,.g3,.pg,.stk,.sgrid,.cgrid,.glance,.car){margin-top:10px}
+@media(min-width:700px){.g2>.pg,.g3>.pg{grid-template-columns:1fr}}
+.g2>.pg,.g2>.stk,.g3>.pg{margin-top:0}
+.tbl td.wr{white-space:normal;min-width:12em}

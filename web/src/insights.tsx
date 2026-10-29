@@ -71,7 +71,7 @@ function StatusInsight() {
     let n = 0; while (n < d.days.length && d.days[d.days.length - 1 - n].status === last.status) n++
     const since = d.days[d.days.length - n].date
     return <div class="g2">
-      <div class="pg"><Explain title="Today" style={`--c:var(--s-${STATUS_KEY[last.status ?? ''] ?? 'recov'})`} items={[
+      <div class="stk"><Explain title="Today" style={`--c:var(--s-${STATUS_KEY[last.status ?? ''] ?? 'recov'})`} items={[
         ['What it says', 'The label comes from fixed rules, not from a model. A few numbers go in and the first rule that fits wins.'],
         [`Why ${label}`, last.status ? statusReason({ label, acwr: last.acwr, ramp7: last.ramp7, tsb: last.tsb, warming_up: !!last.warming_up }) : 'There is not enough history yet.'],
         ['What would change it', 'Form far below zero moves you to Overreaching. Fitness slipping while load stays low moves you to Detraining. The rules are listed on this page.']]}>
@@ -79,10 +79,10 @@ function StatusInsight() {
         {last.status && <p class="cap2">{label} since {day(since, { day: 'numeric', month: 'short' })}.</p>}
       </Explain>
         <section class="card"><h3 class="ch">Last 28 days</h3><StatusStrip days={d.days} /></section></div>
-      <div class="pg"><RulesCard status={last.status} />
-        <section class="card"><h3 class="ch">Fitness and fatigue, {d.days.length} days</h3>
+      <RulesCard status={last.status} />
+        <section class="card wide"><h3 class="ch">Fitness and fatigue, {d.days.length} days</h3>
           <LineChart dates={dates} h={210} label="Fitness and fatigue" summary={summarize('Fitness', dates, d.days.map((x) => x.ctl), (v) => num(v, 1))}
-            series={[{ name: 'Fitness', v: d.days.map((x) => x.ctl), c: 'var(--link)', w: 2.8 }, { name: 'Fatigue', v: d.days.map((x) => x.atl), c: 'var(--warn)' }]} /></section></div>
+            series={[{ name: 'Fitness', v: d.days.map((x) => x.ctl), c: 'var(--link)', w: 2.8 }, { name: 'Fatigue', v: d.days.map((x) => x.atl), c: 'var(--warn)' }]} /></section>
     </div>
   }}</Sub>
 }

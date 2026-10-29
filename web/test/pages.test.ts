@@ -95,6 +95,9 @@ describe('page renders', () => {
     const html = render(h(ActivitiesView, { items: acts.activities as never, sport: 'all', setSport: noop, more: true, onMore: noop, busy: false, err: null }))
     for (const x of ['Morning run', 'Strength', 'href="#/activities/100"', 'Load more', 'Strength']) expect(html).toContain(x)
     clean(html)
+    expect((html.match(/class="th"/g) ?? []).length).toBe(acts.activities.length) // every row has a tile, so rows align
+    const run = acts.activities[0] as { id: number }, wp = render(h(ActivitiesView, { items: acts.activities as never, sport: 'all', setSport: noop, more: false, onMore: noop, busy: false, err: null, routes: new Map([[run.id, [run.id, '2030-01-01', 5000, 1500, [12, 56], [12, 56, 12.01, 56.01, 12.02, 56.0]]]]) as never }))
+    expect((wp.match(/class="th"[^>]*>.*?<\/svg>/g) ?? []).filter((x) => x.includes('<path')).length).toBe(1)
     expect(render(h(ActivitiesView, { items: [], sport: 'bike', setSport: noop, more: false, onMore: noop, busy: false, err: null }))).toContain('No cycling activities have synced')
     expect(render(h(ActivitiesView, { items: [], sport: 'all', setSport: noop, more: false, onMore: noop, busy: false, err: 'The server did not answer.' }))).toContain('Try again')
   })

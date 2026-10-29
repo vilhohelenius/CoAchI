@@ -35,7 +35,7 @@ export function RulesCard({ status }: { status: string | null }) {
   const at = RULES.findIndex((x) => x[0] === status)
   return <section class="card"><h3 class="ch">How the label is chosen</h3>
     <div class="tw"><table class="tbl"><thead><tr><th scope="col">#</th><th scope="col">Label</th><th scope="col">When</th></tr></thead>
-      <tbody>{RULES.map(([l, w], i) => { const hit = i === at; return <tr class={hit ? 'hit' : ''}><td>{i + 1}</td><td><b>{l}</b>{hit && <small class="lab">Matches today</small>}</td><td>{w}</td></tr> })}</tbody></table></div>
+      <tbody>{RULES.map(([l, w], i) => { const hit = i === at; return <tr class={hit ? 'hit' : ''}><td>{i + 1}</td><td><b>{l}</b>{hit && <small class="lab">Matches today</small>}</td><td class="wr">{w}</td></tr> })}</tbody></table></div>
     <span class="lab">The first rule that fits wins.{at > 0 ? ` Rules 1 to ${at} did not match, rule ${at + 1} did.` : at === 0 ? ' Rule 1 matched.' : ''} Under 28 days of history there is no label.</span>
   </section>
 }

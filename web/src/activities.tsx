@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useMemo, useState } from 'preact/hooks'
 import { useApi } from './api'
 import { LineChart, StackedBars } from './chart'
 import { DASH, day, dur, km, num, pace } from './fmt'
 import { DynamicsCard } from './dynamics'
 import { ShoeCard, ShoesView } from './shoes'
-import { HeatmapView } from './heatmap'
+import { HeatmapView, pairs } from './heatmap'
 import { TileMap, mapFit } from './tiles'
 import { Err, Page, Pill, Tile } from './today'
-import type { ActDetail, ActList, ActResp, ActRow, Lap, RoutesResp, ShoesResp } from './types'
+import type { ActDetail, ActList, ActResp, ActRow, Lap, RouteRun, RoutesResp, ShoesResp } from './types'
 
 const SPORT: Record<string, string> = { run: 'Running', bike: 'Cycling', ski: 'Skiing', strength: 'Strength', other: 'Other' }
 const sportName = (s?: string) => SPORT[s ?? 'other'] ?? 'Other'
@@ -18,10 +18,16 @@ const clockOf = (s: number) => (s >= 3600 ? `${Math.floor(s / 3600)}:${String(Ma
 const paceOf = (mps: number | null | undefined) => (mps && mps > 0.3 ? mmss(1000 / mps) : DASH)
 
 // ---- list ----
-function Row({ a }: { a: ActRow }) {
+/** Route minimap tile; no GPS gives an empty tile so rows stay aligned. Rows render only for loaded pages, never one fetch per row. */
+function Thumb({ r }: { r?: RouteRun }) {
+  const t = useMemo(() => (r ? routePath(pairs(r), 56, 56, 6) : null), [r])
+  return <svg class="th" viewBox="0 0 56 56" aria-hidden="true"><rect width="56" height="56" rx="8" fill="var(--m-bg)" />{t && <path d={t.d} fill="none" stroke="var(--route)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />}</svg>
+}
+function Row({ a, r }: { a: ActRow; r?: RouteRun }) {
   const run = footed(a.sport, a.type), has = (a.distance_m ?? 0) > 0, ride = a.sport === 'bike'
   const mid = [day(a.start_local, { day: 'numeric', month: 'short' }), has && run ? `${pace(a.distance_m, a.duration_s)} /km` : has && ride && a.duration_s ? `${num(((a.distance_m ?? 0) / a.duration_s) * 3.6, 1)} km/h` : !run && !ride ? sportName(a.sport) : '', a.avg_hr != null ? `${num(a.avg_hr)} bpm` : '', ride ? 'ride' : ''].filter(Boolean).join(' · ')
   return <a class="arow" href={`#/activities/${a.id}`}>
+    <Thumb r={r} />
     <span class="at"><b>{a.name || sportName(a.sport)}</b><small>{mid}</small></span>
     <span class="av"><b>{has ? km(a.distance_m) : dur(a.duration_s)}</b><small>{has ? `km · ${dur(a.duration_s)}` : 'time'}</small></span>
   </a>
@@ -29,7 +35,7 @@ function Row({ a }: { a: ActRow }) {
 
 const month = (k: string) => day(k + '-01', { month: 'long', year: 'numeric' })
 
-export function ActivitiesView({ items, sport, setSport, more, onMore, busy, err }: { items: ActRow[]; sport: string; setSport: (s: string) => void; more: boolean; onMore: () => void; busy: boolean; err: string | null }) {
+export function ActivitiesView({ items, sport, setSport, more, onMore, busy, err, routes }: { routes?: Map<number, RouteRun>; items: ActRow[]; sport: string; setSport: (s: string) => void; more: boolean; onMore: () => void; busy: boolean; err: string | null }) {
   const groups: [string, ActRow[]][] = []
   for (const a of items) { const k = a.start_local.slice(0, 7), g = groups[groups.length - 1]; if (g?.[0] === k) g[1].push(a); else groups.push([k, [a]]) }
   const since = items.length ? day(items[items.length - 1].start_local, { day: 'numeric', month: 'short', year: 'numeric' }) : ''
@@ -39,7 +45,7 @@ export function ActivitiesView({ items, sport, setSport, more, onMore, busy, err
       {items.length > 0 && <span class="lab" role="status">{items.length} activities since {since}{more ? ', more to load' : ''}</span>}</div>
     {!items.length && !err ? <section class="card"><p class="k">Nothing here yet</p><p class="t0">{sport === 'all' ? 'No activities have synced.' : `No ${sportName(sport).toLowerCase()} activities have synced.`}</p><a class="btn" href="#/settings">Open Settings</a></section>
       : <div class="stk" style="margin-top:10px">{groups.map(([k, g]) => { const runs = g.filter((a) => footed(a.sport, a.type)), rk = runs.reduce((t, a) => t + (a.distance_m ?? 0), 0)
-        return <section class="card alist"><p class="k"><b>{month(k)}</b><span>{runs.length ? `${runs.length} ${runs.length === 1 ? 'run' : 'runs'} · ${km(rk, 0)} km` : `${g.length} ${g.length === 1 ? 'activity' : 'activities'}`}</span></p>{g.map((a) => <Row a={a} />)}</section> })}</div>}
+        return <section class="card alist"><p class="k"><b>{month(k)}</b><span>{runs.length ? `${runs.length} ${runs.length === 1 ? 'run' : 'runs'} · ${km(rk, 0)} km` : `${g.length} ${g.length === 1 ? 'activity' : 'activities'}`}</span></p>{g.map((a) => <Row a={a} r={routes?.get(a.id)} />)}</section> })}</div>}
     {err && <Err msg={err} retry={onMore} />}
     {more && !err && <p style="text-align:center;margin:14px 0"><button class="btn g" disabled={busy} onClick={onMore}>{busy ? 'Loading' : 'Load more'}</button></p>}
   </>
@@ -62,10 +68,11 @@ export function ActivitiesPage() {
       .finally(() => setBusy(false))
   }
   useEffect(() => { setItems([]); setNext(null); load(null, true) }, [sport, tick])
+  const [rt] = useApi<RoutesResp>('/api/routes'), routes = useMemo(() => (rt.s === 'ok' ? new Map(rt.data.runs.map((r) => [r[0], r])) : undefined), [rt])
   return <>
     <h1>Activities</h1><Tabs cur="" />
     {busy && !items.length && !err ? <><div class="tools"><div class="seg" /></div><div aria-busy="true" aria-label="Loading"><section class="card sk" /></div></>
-      : <ActivitiesView items={items} sport={sport} setSport={setSport} more={next != null} busy={busy} err={err} onMore={() => (err && !items.length ? setTick((t) => t + 1) : load(next, false))} />}
+      : <ActivitiesView items={items} sport={sport} setSport={setSport} more={next != null} busy={busy} err={err} routes={routes} onMore={() => (err && !items.length ? setTick((t) => t + 1) : load(next, false))} />}
   </>
 }
 
