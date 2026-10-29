@@ -79,6 +79,16 @@ Each key under a day can be missing when its inputs were missing that day. Sleep
 
 Statuses are pace words and never pass or fail. Year and steps use `ahead`, `on_pace`, `behind`. The current week uses the same words against the part of the band that fits the days elapsed. Finished weeks use `below_band`, `in_band`, `above_band`. Yearly distance counts running activities only. `projected_km` is a straight line from the 8-week average. `streak_days` counts consecutive calendar days at or above the goal, today only counts once reached and is otherwise `today_pending`.
 
+## GET /api/steps?days=28
+
+```json
+{ "as_of": "...", "goal": 10000,
+  "days": [ { "date": "2030-06-01", "steps": 6400 }, { "date": "2030-05-31", "steps": null } ],
+  "summary": { "goal": 10000, "today": 6400, "streak_days": 4, "today_pending": true, "hit_30d": 21, "avg_7d": 10400, "avg_30d": 9800, "status": "on_pace" } }
+```
+
+`days` (default 28, up to 365) is dense and ends on the latest day with steps in `daily_summary`, `steps` is `null` when Garmin sent nothing. `goal` is the active steps goal from `goals`. `summary` is the steps part of `progress` in `/api/goals` (`null` before the first recompute). Empty database: `days` is `[]`.
+
 ## GET /api/mileage?by=week|month|year&sport=run|bike|ski|strength|all
 
 ```json

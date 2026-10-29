@@ -182,6 +182,19 @@ describe('metric endpoints', () => {
   })
 })
 
+describe('steps endpoint', () => {
+  it('fills gaps with null, reads the goal and streak, needs Access', async () => {
+    const m = mk(), get = async (p: string) => req(m.app, m.env, p, 'GET', await tok())
+    expect((await req(m.app, m.env, '/api/steps')).status).toBe(401)
+    expect(await (await get('/api/steps')).json()).toMatchObject({ goal: 10000, days: [], summary: null })
+    await m.l.batch([...[['2030-05-29', 12000], ['2030-05-30', 4000], ['2030-06-01', 10500]].map(([d, n]): [string, unknown[]] => ['INSERT INTO daily_summary (date,steps) VALUES (?,?)', [d, n]]),
+      ["INSERT INTO metric_daily (date,key,value,json) VALUES ('2030-06-01','goals',NULL,'{\"steps\":{\"goal\":10000,\"streak_days\":1}}')"]])
+    const j = (await (await get('/api/steps?days=4')).json()) as any
+    expect(j.days).toEqual([{ date: '2030-05-29', steps: 12000 }, { date: '2030-05-30', steps: 4000 }, { date: '2030-05-31', steps: null }, { date: '2030-06-01', steps: 10500 }])
+    expect(j.summary.streak_days).toBe(1)
+  })
+})
+
 describe('records and fitness endpoints', () => {
   const get = async (p: string, t: ReturnType<typeof mk>) => (await req(t.app, t.env, p, 'GET', await tok())).json() as Promise<any>
   it('empty with available:false before the stage has run or the migration is applied', async () => {

@@ -117,14 +117,15 @@ export function LineChart(p: Frame & { series: Series[]; band?: { lo: Num[]; hi:
 
 export type Stack = { name: string; c: string; hide?: boolean }
 /** vals[bar][segment]. A hidden segment (a spacer under a floating range bar) is drawn invisible and left out of the tooltip. */
-export function StackedBars(p: Frame & { stacks: Stack[]; vals: Num[][]; top?: number; legend?: boolean }) {
-  const n = p.dates.length, tot = p.vals.map((r) => stack(r)[r.length - 1]?.[1] ?? 0), hi = p.top ?? Math.max(1, ...tot)
+export function StackedBars(p: Frame & { stacks: Stack[]; vals: Num[][]; top?: number; legend?: boolean; goal?: number }) {
+  const n = p.dates.length, tot = p.vals.map((r) => stack(r)[r.length - 1]?.[1] ?? 0), hi = p.top ?? Math.max(1, p.goal ? p.goal * 1.15 : 0, ...tot)
   if (!n || !tot.some((t) => t > 0)) return <p class="empty">{p.summary}</p>
   const lines = p.tip ?? ((i: number) => [day(p.dates[i], { weekday: 'short', day: 'numeric', month: 'short' }), ...p.stacks.map((s, k) => (s.hide ? '' : `${s.name} ${fin(p.vals[i][k]) ? (p.yfmt ?? ((v: number) => num(v)))(p.vals[i][k] as number) + (p.unit ?? '') : DASH}`)).filter(Boolean)])
   return <Frame {...p} bars n={n} y0={0} y1={hi} yt={ticks(0, hi, 4)} lines={lines}
     legend={p.legend !== false && <div class="legend">{p.stacks.filter((s) => !s.hide).map((s) => <span><i style={`background:${s.c}`} />{s.name}</span>)}</div>}
     draw={(X, Y, w) => {
       const bw = Math.max(2, Math.min(40, ((w - ML - MR) / n) * 0.7))
-      return p.vals.map((r, i) => stack(r).map(([a, b], k) => b > a && !p.stacks[k].hide && <rect x={X(i) - bw / 2} y={Y(b)} width={bw} height={Math.max(1, Y(a) - Y(b))} rx={Math.min(3, bw / 2)} fill={p.stacks[k].c} />))
+      return <>{p.vals.map((r, i) => stack(r).map(([a, b], k) => b > a && !p.stacks[k].hide && <rect x={X(i) - bw / 2} y={Y(b)} width={bw} height={Math.max(1, Y(a) - Y(b))} rx={Math.min(3, bw / 2)} fill={p.stacks[k].c} />))}
+        {p.goal != null && <line x1={ML} x2={w - MR} y1={Y(p.goal)} y2={Y(p.goal)} stroke="var(--ink)" stroke-dasharray="4 4" />}</>
     }} />
 }

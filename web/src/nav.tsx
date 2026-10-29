@@ -7,7 +7,7 @@ const Ic = ({ k }: { k: keyof typeof I }) => <svg class="i" viewBox="0 0 24 24" 
 type V = [string, string, keyof typeof I]
 export const GROUPS: [string, V[]][] = [
   ['Daily', [['today', 'Today', 'today']]],
-  ['Training', [['activities', 'Activities', 'act'], ['mileage', 'Mileage', 'km'], ['records', 'Records', 'rec']]],
+  ['Training', [['activities', 'Activities', 'act'], ['mileage', 'Mileage', 'km'], ['steps', 'Steps', 'steps'], ['records', 'Records', 'rec']]],
   ['Analysis', [['load', 'Load', 'ins'], ['recovery', 'Recovery', 'ins'], ['intensity', 'Intensity', 'ins'], ['dynamics', 'Dynamics', 'ins']]],
   ['You', [['goals', 'Goals', 'goal'], ['settings', 'Settings', 'gear']]],
 ]

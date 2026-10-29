@@ -110,6 +110,17 @@ export function metricRoutes(app: App, now: () => number) {
     return c.json({ as_of: asOf(), data_date: g?.date ?? null, goals: defs, progress: g ? pj(g) : null })
   })
 
+  // Dense daily steps ending at the latest day with data (null where Garmin sent nothing), plus the precomputed streak and averages.
+  app.get('/api/steps', async (c) => {
+    const n = int(c.req.query('days'), 28, 365), db = c.env.DB
+    const to = (await q<any>(db, 'SELECT MAX(date) d FROM daily_summary WHERE steps IS NOT NULL'))[0]?.d
+    const [g] = await q<any>(db, `SELECT target_value v FROM goals WHERE kind='steps' AND status='active' ORDER BY id LIMIT 1`)
+    if (!to) return c.json({ as_of: asOf(), goal: g?.v ?? null, days: [], summary: null })
+    const from = addDays(to, 1 - n), m = Object.fromEntries((await q<any>(db, 'SELECT date, steps FROM daily_summary WHERE date >= ? AND date <= ?', from, to)).map((r) => [r.date, r.steps]))
+    const [gm] = await q<M>(db, `SELECT * FROM metric_daily WHERE key='goals' ORDER BY date DESC LIMIT 1`)
+    return c.json({ as_of: asOf(), goal: g?.v ?? null, days: Array.from({ length: n }, (_, i) => { const d = addDays(from, i); return { date: d, steps: m[d] ?? null } }), summary: gm ? pj(gm).steps ?? null : null })
+  })
+
   // ---- mileage: one GROUP BY each, no per-activity loops ----
   app.get('/api/mileage', async (c) => {
     const by = c.req.query('by') === 'month' ? 'month' : c.req.query('by') === 'year' ? 'year' : 'week', sp = c.req.query('sport')

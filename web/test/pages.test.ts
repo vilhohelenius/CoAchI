@@ -20,6 +20,8 @@ import aStr from '../fixtures/activity-strength.json'
 import load from '../fixtures/load.json'
 import recovery from '../fixtures/recovery.json'
 import intensity from '../fixtures/intensity.json'
+import { StepsView } from '../src/steps'
+import steps from '../fixtures/steps.json'
 import goals from '../fixtures/goals.json'
 
 const text = (html: string) => html.replace(/<[^>]*>/g, ' ')
@@ -57,6 +59,13 @@ describe('page renders', () => {
     const bare = render(h(GoalsView, { g: { as_of: 'x', data_date: '2030-06-01', progress: { steps: { goal: 10000, today: null, streak_days: 0, today_pending: true, hit_30d: 0, avg_7d: null, status: 'behind' } } } }))
     expect(bare).toContain('No steps recorded yet today'); clean(bare)
     expect(render(h(GoalsView, { g: { as_of: 'x', progress: null } }))).toContain('No goals yet')
+  })
+  it('Steps, normal and empty', () => {
+    const html = render(h(StepsView, { d: steps as never }))
+    for (const s of ['Goal is 10,000 a day', 'Streak', '7-day average', 'Days at goal', 'dashed is the goal', 'class="sr"']) expect(html).toContain(s)
+    clean(html)
+    const bare = render(h(StepsView, { d: { as_of: 'x', goal: 10000, days: [], summary: null } }))
+    expect(bare).toContain('No steps yet'); clean(bare)
   })
   it('Mileage, normal and sparse', () => {
     const html = render(h(MileageView, { d: mWeek as never, c: mCmp as never }))

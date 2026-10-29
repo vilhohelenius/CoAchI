@@ -59,3 +59,5 @@ export type CsFit = { ok: boolean; reason: string | null; n: number; cs?: number
 export type Prediction = { label: string; dist_m: number; point_s: number | null; lo_s: number | null; hi_s: number | null; cs_s: number | null; flags: string[]; model?: 'vdot' | 'riegel' | null; vdot?: number | null
   source: { label: string; dist_m: number; time_s: number; date: string; age_days: number } | null }
 export type FitnessResp = { as_of: string; available: boolean; riegel: number; vo2?: Vo2; cs?: CsFit; predictions?: Prediction[] }
+
+export type StepsResp = { as_of: string; goal: number | null; days: { date: string; steps: number | null }[]; summary: GoalProgress['steps'] | null }
