@@ -1,6 +1,8 @@
 import { useState } from 'preact/hooks'
 import { useApi } from './api'
-import { fitter } from './activities'
+import { fitter, routePath } from './activities'
+import { day, dur, km, num } from './fmt'
+import { groupRoutes } from '../../src/metrics/routes'
 import { Page } from './today'
 import type { RouteRun, RoutesResp } from './types'
 
@@ -20,7 +22,20 @@ export function HeatmapView({ d }: { d: RoutesResp }) {
       <svg class="map" style="height:auto" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Heatmap of ${runs.length} runs. Brighter lines are routes you run more often.`}><rect width={W} height={H} fill="var(--m-bg)" />
         {f && runs.map((r) => <path d={'M' + pairs(r).map((p) => f(p).map((x) => x.toFixed(1)).join(' ')).join('L')} fill="none" stroke="var(--link)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" opacity=".16" />)}</svg>
       <p class="mu">The map has no background on purpose: loading map tiles would tell a third party where you run.</p></section>
+    <RouteList runs={d.runs} />
   </>
+}
+
+/** Repeated routes: same start and about the same distance (docs/metrics.md, Routes). Links to the latest run. */
+function RouteList({ runs }: { runs: RouteRun[] }) {
+  const gs = groupRoutes(runs).slice(0, 12)
+  return <section class="card"><h2 class="ch2">Your routes</h2>
+    {gs.length ? <div class="alist" style="padding:0">{gs.map((g) => { const t = routePath(pairs(g.last), 56, 56, 5); return <a class="arow" href={`#/activities/${g.last[0]}`}>
+      <svg class="th" viewBox="0 0 56 56" role="img" aria-label="Shape of the latest run on this route"><rect width="56" height="56" rx="8" fill="var(--m-bg)" />{t && <path d={t.d} fill="none" stroke="var(--link)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />}</svg>
+      <span class="at"><b>About {km(g.med_m)} km</b><small>Best {dur(g.best[3])} · last {dur(g.last[3])}, {day(g.last[1], { day: 'numeric', month: 'short', year: 'numeric' })}</small></span>
+      <span class="av"><b>{num(g.n)}<small> runs</small></b></span></a> })}</div>
+      : <p class="empty">Routes you run at least twice show up here, grouped by start point and distance.</p>}
+    <p class="cap2">Runs count as one route when they start within 150 m of each other and are within 5% of the same distance.</p></section>
 }
 
 export function HeatmapPage() {

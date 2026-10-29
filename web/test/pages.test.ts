@@ -126,8 +126,8 @@ describe('page renders', () => {
   })
   it('Heatmap draws one faint line per run inside the box, and degrades when empty', () => {
     const html = render(h(HeatmapView, { d: routes as never }))
-    expect(html.match(/<path /g)!.length).toBe(routes.runs.length)
-    for (const x of ['8 runs', 'All years', '2029', '2030', 'no background on purpose']) expect(html).toContain(x)
+    expect(html.match(/<path /g)!.length).toBe(routes.runs.length + 2) // plus one thumbnail per route group
+    for (const x of ['8 runs', 'All years', '2029', '2030', 'no background on purpose', 'Your routes', 'About 5.1 km', '4<small> runs</small>', 'href="#/activities/204"', 'About 10.2 km', 'within 5%']) expect(html).toContain(x)
     expect(html).not.toContain('<image'); expect(html).not.toContain('http')
     for (const n of html.match(/[ML]-?\d+\.\d/g)!.map((x) => Number(x.slice(1)))) { expect(n).toBeGreaterThanOrEqual(-1); expect(n).toBeLessThanOrEqual(801) }
     clean(html)

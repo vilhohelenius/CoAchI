@@ -120,6 +120,7 @@ input[type=range]{width:100%;accent-color:var(--link);min-height:32px}
 .at,.av{display:flex;flex-direction:column;min-width:0}.av{text-align:right;flex:none}.at b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .av b{font-family:var(--fd);font-weight:800;font-size:26px;line-height:1}.av b small{font:400 13px system-ui;color:var(--mute)}
 .arow small{color:var(--mute);font-size:13px}
+.arow .th{flex:none;width:56px;height:56px}.arow .th+.at{flex:1}
 .tw{overflow-x:auto}.tbl{width:100%;border-collapse:collapse;font-size:14px}.tbl th{font-weight:600;color:var(--mute);text-align:left;padding:6px 8px 6px 0;white-space:nowrap}.tbl td{padding:9px 8px 9px 0;border-top:1px solid var(--line);white-space:nowrap}.tbl .r{text-align:right}.tbl th:last-child,.tbl td:last-child{padding-right:0}
 .btn[disabled]{opacity:.6}
 

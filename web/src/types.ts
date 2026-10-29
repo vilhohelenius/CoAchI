@@ -1,3 +1,4 @@
+import type { RouteRun } from '../../src/metrics/routes'
 // Mirrors docs/api.md. Any field may be null or missing when its input was missing.
 export type Component = { key: string; label: string; weight: number; available: boolean; n: number; score: number | null; value: string | null }
 export type Hrv = { last: number | null; h7: number | null; base: number | null; low: number | null; high: number | null; z: number | null; status: 'below' | 'in_range' | 'above' | null; n7: number; n_base: number; range_ok: boolean }
@@ -63,5 +64,5 @@ export type FitnessResp = { as_of: string; available: boolean; riegel: number; v
 export type StepsResp = { as_of: string; goal: number | null; days: { date: string; steps: number | null }[]; summary: GoalProgress['steps'] | null }
 
 /** routes/all.json: [id, date, distance_m, duration_s, [startLat, startLon], flat lat/lon list] */
-export type RouteRun = [number, string, number, number, [number, number], number[]]
+export type { RouteRun }
 export type RoutesResp = { v: number; runs: RouteRun[] }
