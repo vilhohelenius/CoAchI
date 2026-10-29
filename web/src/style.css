@@ -162,7 +162,7 @@ a.t{color:inherit;text-decoration:none}.parts{position:relative;z-index:1}
 .nrow{grid-template-columns:5.5em 1fr auto}@media(max-width:600px){.nrow{grid-template-columns:1fr}}
 
 /* map zoom and pan (tiles.tsx), shoes text inputs (shoes.tsx) */
-.map.zm{touch-action:none;cursor:grab;user-select:none}.map.zm:active{cursor:grabbing}.map .vw path{vector-effect:non-scaling-stroke}
+.map.zm{touch-action:pan-y;cursor:grab;user-select:none}.map.zm.on{touch-action:none}.map.zm:active{cursor:grabbing}.map .vw path{vector-effect:non-scaling-stroke}
 .zb{position:absolute;left:8px;top:8px;display:grid;gap:4px}.zb button{width:44px;height:44px;border:1px solid var(--line);border-radius:var(--r2);background:var(--pane);color:var(--ink);font:700 20px/1 system-ui;cursor:pointer}.zb button:disabled{opacity:.4;cursor:default}
 .pr input[type=text]{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:var(--r2);min-height:44px;padding:0 12px;width:100%;box-sizing:border-box}
 .calh{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.calh h2{margin:0}

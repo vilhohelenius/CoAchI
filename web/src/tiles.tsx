@@ -56,7 +56,7 @@ export function TileMap({ fit, label, children }: { fit: Fit; label: string; chi
   const zoom = (f: number, c: [number, number] = [w / 2, h / 2]) => setV((x) => zoomView(x, x.k * f, c[0], c[1], w, h))
   useEffect(() => {
     const el = svg.current; if (!el) return
-    const f = (e: WheelEvent) => { e.preventDefault(); zoom(Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.002)), u(e)) }
+    const f = (e: WheelEvent) => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); zoom(Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.002)), u(e)) }
     el.addEventListener('wheel', f, { passive: false }); return () => el.removeEventListener('wheel', f)
   }, [w, h])
   const move = (e: PointerEvent) => {
@@ -67,7 +67,7 @@ export function TileMap({ fit, label, children }: { fit: Fit; label: string; chi
   }
   const tiles = fit.at(v), on = seen && tiles.some((t) => !bad.includes(t.url))
   return <div ref={ref} class="mapw">
-    <svg ref={svg} class="map zm" style="height:auto" viewBox={`0 0 ${w} ${h}`} role="img" aria-label={label}
+    <svg ref={svg} class={`map zm${v.k > 1 ? ' on' : ''}`} style="height:auto" viewBox={`0 0 ${w} ${h}`} role="img" aria-label={label}
       onPointerDown={(e) => { (e.currentTarget as Element).setPointerCapture?.(e.pointerId); ptr.current.set(e.pointerId, u(e)) }} onPointerMove={move}
       onPointerUp={(e) => ptr.current.delete(e.pointerId)} onPointerCancel={(e) => ptr.current.delete(e.pointerId)} onDblClick={(e) => zoom(2, u(e))}>
       <rect width={w} height={h} fill="var(--m-bg)" />
