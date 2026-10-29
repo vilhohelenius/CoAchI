@@ -56,6 +56,11 @@ describe('frontend end to end', () => {
     flip() // -> auto
     await vi.waitFor(() => expect(root.querySelector('.side .mode')?.textContent).toContain('auto'))
   })
+  it('goals form refuses incomplete numbers without calling the server', async () => {
+    await go('#/goals')
+    ;(root.querySelector('form button[type=submit]') as HTMLButtonElement).click()
+    await vi.waitFor(() => expect(root.querySelector('form [role=status]')?.textContent).toContain('Check the numbers'))
+  })
   it('unknown route falls back to Today', async () => {
     location.hash = '#/nope'
     await vi.waitFor(() => expect(root.querySelector('.nav [aria-current]')?.textContent).toBe('Today'))

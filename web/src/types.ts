@@ -16,7 +16,7 @@ export type GoalProgress = {
   year?: { target_km: number; ytd_km: number; expected_km: number; diff_km: number; status: string; projected_km: number | null; avg_week_km_8w: number | null } | null
   week?: { band_lo: number; band_hi: number; week_start?: string; km: number; status: string; previous?: { week_start: string; km: number; status: string }[] } | null
   steps?: { goal: number; today: number | null; streak_days: number; today_pending: boolean; hit_30d: number; avg_7d: number | null; avg_30d?: number | null; status: string } | null }
-export type Goals = { as_of: string; data_date?: string | null; progress?: GoalProgress | null }
+export type Goals = { as_of: string; data_date?: string | null; goals?: { id: number; kind: string; target_value: number | null; target_max: number | null; status: string }[]; progress?: GoalProgress | null }
 
 export type LoadDay = { date: string; load: number | null; ctl: number | null; atl: number | null; tsb: number | null; tsb_end: number | null; acwr: number | null; ramp7: number | null; status: string | null; warming_up: number }
 export type LoadResp = { as_of: string; acwr_band?: [number, number]; days: LoadDay[]

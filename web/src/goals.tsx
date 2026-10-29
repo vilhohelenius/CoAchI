@@ -1,3 +1,4 @@
+import { useState } from 'preact/hooks'
 import { useApi } from './api'
 import { LineChart } from './chart'
 import { day, num, paceWord, pct } from './fmt'
@@ -7,6 +8,25 @@ import type { Goals } from './types'
 
 const BAND: Record<string, string> = { below_band: 'below the band', in_band: 'in the band', above_band: 'above the band' }
 const tone = (s: string) => (s === 'behind' || s === 'below_band' ? 'warn' : s === 'ahead' || s === 'on_pace' || s === 'in_band' ? 'ok' : 'mute')
+
+const FIELDS: [string, string, string, string, number, number, number][] = [['year_km', 'Kilometres this year', 'km', 'distance', 500, 6000, 50], ['band_lo', 'Weekly running, lower end', 'km', 'weekly_km', 10, 150, 1], ['band_hi', 'Weekly running, upper end', 'km', 'weekly_km', 10, 150, 1], ['steps', 'Steps per day', 'steps', 'steps', 2000, 30000, 500]]
+
+/** Edit the three goals. Progress above follows the next sync. */
+function EditGoals({ g }: { g: Goals }) {
+  const def = (k: string) => (g.goals ?? []).find((x) => x.kind === k && x.status === 'active')
+  const [v, setV] = useState<Record<string, string>>(() => Object.fromEntries(FIELDS.map(([f, , , kind]) => [f, String((f === 'band_hi' ? def(kind)?.target_max : def(kind)?.target_value) ?? '')])))
+  const [msg, setMsg] = useState('')
+  const n = Object.fromEntries(FIELDS.map(([f]) => [f, v[f] === '' ? NaN : Number(v[f])]))
+  const submit = async (e: Event) => {
+    e.preventDefault()
+    if (FIELDS.some(([f, , , , lo, hi]) => !(n[f] >= lo && n[f] <= hi)) || n.band_hi <= n.band_lo) return setMsg('Check the numbers. The upper weekly limit must be above the lower one.')
+    const r = await fetch('/api/goals', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(n) }).catch(() => null)
+    setMsg(!r ? 'The server did not answer.' : r.ok ? 'Saved. Progress updates after the next sync.' : `Could not save (${r.status}).`)
+  }
+  return <form class="card" onSubmit={submit}><h2 class="ch2">Edit goals</h2>
+    <div class="pr">{FIELDS.map(([f, l, u, , lo, hi, st]) => <label><span class="lab">{l}</span><input type="number" inputMode="numeric" min={lo} max={hi} step={st} value={v[f]} onInput={(e) => setV({ ...v, [f]: (e.target as HTMLInputElement).value })} /> <small class="lab" style="display:inline">{u}</small></label>)}</div>
+    <p class="cap2" role="status">{msg}</p><button class="btn" type="submit">Save goals</button></form>
+}
 
 export function GoalsView({ g }: { g: Goals }) {
   const p = g.progress, y = p?.year, w = p?.week, s = p?.steps
@@ -47,6 +67,7 @@ export function GoalsView({ g }: { g: Goals }) {
         <div class="bar"><i style={`width:${pct(s.today ?? 0, 0, s.goal)}%`} /></div>
         <p class="cap2">{s.today == null ? 'No steps recorded yet today.' : `${num(s.today)} steps so far today.`}</p>
       </section></>}
+    <h2 class="sh">Change goals</h2><EditGoals g={g} />
   </>
 }
 

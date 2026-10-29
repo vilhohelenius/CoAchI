@@ -121,6 +121,19 @@ export function metricRoutes(app: App, now: () => number) {
     return c.json({ as_of: asOf(), goal: g?.v ?? null, days: Array.from({ length: n }, (_, i) => { const d = addDays(from, i); return { date: d, steps: m[d] ?? null } }), summary: gm ? pj(gm).steps ?? null : null })
   })
 
+  // Edit the three seeded goals in one statement. Progress in /api/goals is recomputed by the next sync.
+  const RANGE = { year_km: [500, 6000], band_lo: [10, 150], band_hi: [10, 150], steps: [2000, 30000] } as const
+  app.put('/api/goals', async (c) => {
+    const b = (c.req.header('content-type')?.includes('application/json') ? await c.req.json().catch(() => null) : null) as Record<string, unknown> | null
+    const bad = (error: string) => c.json({ error, code: 'INVALID' }, 400)
+    if (!b || typeof b !== 'object') return bad('JSON body expected')
+    for (const [k, [lo, hi]] of Object.entries(RANGE)) { const v = b[k]; if (typeof v !== 'number' || !Number.isFinite(v) || v < lo || v > hi) return bad(`${k} must be a number from ${lo} to ${hi}`) }
+    if ((b.band_hi as number) <= (b.band_lo as number)) return bad('band_hi must be above band_lo')
+    await c.env.DB.prepare(`UPDATE goals SET target_value = CASE kind WHEN 'distance' THEN ? WHEN 'weekly_km' THEN ? ELSE ? END, target_max = CASE kind WHEN 'weekly_km' THEN ? ELSE target_max END
+      WHERE status='active' AND kind IN ('distance','weekly_km','steps')`).bind(b.year_km, b.band_lo, b.steps, b.band_hi).run()
+    return c.json({ ok: true })
+  })
+
   // ---- mileage: one GROUP BY each, no per-activity loops ----
   app.get('/api/mileage', async (c) => {
     const by = c.req.query('by') === 'month' ? 'month' : c.req.query('by') === 'year' ? 'year' : 'week', sp = c.req.query('sport')

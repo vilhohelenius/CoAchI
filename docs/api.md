@@ -79,6 +79,10 @@ Each key under a day can be missing when its inputs were missing that day. Sleep
 
 Statuses are pace words and never pass or fail. Year and steps use `ahead`, `on_pace`, `behind`. The current week uses the same words against the part of the band that fits the days elapsed. Finished weeks use `below_band`, `in_band`, `above_band`. Yearly distance counts running activities only. `projected_km` is a straight line from the 8-week average. `streak_days` counts consecutive calendar days at or above the goal, today only counts once reached and is otherwise `today_pending`.
 
+## PUT /api/goals
+
+`{ "year_km": 2000, "band_lo": 50, "band_hi": 60, "steps": 10000 }`, JSON only (`content-type: application/json`), all four numbers required. Ranges: `year_km` 500 to 6000, `band_lo` and `band_hi` 10 to 150 with `band_hi` above `band_lo`, `steps` 2000 to 30000. Updates the active distance, weekly_km and steps goals in one statement and answers `{ "ok": true }`. Anything invalid answers 400 `{ error, code: "INVALID" }`. The `goals` list in `GET /api/goals` changes at once, `progress` follows the next recompute (the next sync).
+
 ## GET /api/steps?days=28
 
 ```json

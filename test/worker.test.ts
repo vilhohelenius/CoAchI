@@ -182,6 +182,21 @@ describe('metric endpoints', () => {
   })
 })
 
+describe('PUT /api/goals', () => {
+  const put = async (m: ReturnType<typeof mk>, body: unknown, ct = 'application/json', t?: string) =>
+    m.app.request('/api/goals', { method: 'PUT', headers: { 'content-type': ct, ...(t ? { 'Cf-Access-Jwt-Assertion': t } : {}) }, body: typeof body === 'string' ? body : JSON.stringify(body) }, m.env)
+  const ok = { year_km: 1800, band_lo: 40, band_hi: 55, steps: 9000 }
+  it('needs Access, validates, and updates the three active goals', async () => {
+    const m = mk(), t = await tok()
+    expect((await put(m, ok)).status).toBe(401)
+    for (const b of [{ ...ok, year_km: 100 }, { ...ok, steps: '9000' }, { ...ok, band_hi: 40 }, { ...ok, band_lo: NaN }, { year_km: 1800 }, 'nope']) expect((await put(m, b, 'application/json', t)).status).toBe(400)
+    expect((await put(m, ok, 'text/plain', t)).status).toBe(400)
+    expect((await m.l.all('SELECT target_value FROM goals ORDER BY id', [])).map((r: any) => r.target_value)).toEqual([2000, 50, 10000])
+    expect((await put(m, ok, 'application/json', t)).status).toBe(200)
+    expect(await m.l.all('SELECT kind, target_value v, target_max mx FROM goals ORDER BY id', [])).toEqual([{ kind: 'distance', v: 1800, mx: null }, { kind: 'weekly_km', v: 40, mx: 55 }, { kind: 'steps', v: 9000, mx: null }])
+  })
+})
+
 describe('steps endpoint', () => {
   it('fills gaps with null, reads the goal and streak, needs Access', async () => {
     const m = mk(), get = async (p: string) => req(m.app, m.env, p, 'GET', await tok())

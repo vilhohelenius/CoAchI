@@ -53,6 +53,8 @@ describe('page renders', () => {
     expect(render(h(IntensityView, { d: { as_of: 'x', weeks: [] }, sel: 'all', setSel: noop }))).toContain('Nothing here yet')
   })
   it('Goals, normal and sparse', () => {
+    const form = render(h(GoalsView, { g: goals as never }))
+    for (const x of ['Edit goals', 'Kilometres this year', 'Save goals', 'value="2000"']) expect(form).toContain(x)
     const html = render(h(GoalsView, { g: goals as never }))
     for (const s of ['on pace', 'ahead of pace', 'below the band', 'above the band', 'In a row at goal', '30-day average']) expect(html).toContain(s)
     clean(html)
