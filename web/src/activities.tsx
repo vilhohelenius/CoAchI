@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 import { useApi } from './api'
-import { LineChart } from './chart'
+import { LineChart, StackedBars } from './chart'
 import { DASH, day, dur, km, num, pace } from './fmt'
 import { DynamicsCard } from './dynamics'
 import { Err, Page, Pill, Tile } from './today'
@@ -84,7 +84,8 @@ function Charts({ d, run, type }: { d: ActDetail; run: boolean; type: 'pace' | '
     { t: 'Heart rate', v: d.hr, c: 'var(--s-over)', f: (x) => num(x), u: ' bpm' },
     type === 'pace' ? { t: 'Pace', v: spd.map((v) => (v == null ? null : -Math.min(900, 1000 / v))), c: 'var(--link)', f: (x) => mmss(-x), u: ' /km' }
       : { t: 'Speed', v: spd.map((v) => (v == null ? null : v * 3.6)), c: 'var(--link)', f: (x) => num(x, 1), u: ' km/h' },
-    { t: run ? 'Cadence' : 'Cadence', v: d.cad.map((v) => (v != null && v > 0 ? v : null)), c: 'var(--b5)', f: (x) => num(x), u: run ? ' steps/min' : ' rpm' },
+    { t: 'Cadence', v: d.cad.map((v) => (v != null && v > 0 ? v : null)), c: 'var(--b5)', f: (x) => num(x), u: run ? ' steps/min' : ' rpm' },
+    { t: 'Elevation', v: d.alt ?? [], c: 'var(--ink)', f: (x) => num(x), u: ' m' },
   ]
   const shown = defs.filter((s) => s.v.some((x) => x != null))
   if (!shown.length || n < 2) return null
@@ -109,6 +110,27 @@ function Efficiency({ d }: { d: ActDetail | null }) {
     <div class="kv"><div><span class="num">{num(d.ef, 2)}</span><span class="lab">Efficiency, metres per minute per beat</span></div>
       <div><span class="num">{x == null ? DASH : `${x > 0 ? '+' : ''}${num(x, 1)}`}<small>{x == null ? '' : ' %'}</small></span><span class="lab">Heart rate drift</span></div></div>
     <p class="cap2">Efficiency is how fast you move for each heartbeat. Drift compares the first and second half of the steady part. Under 5% on an easy run means your aerobic engine held up.{x == null ? ' Drift needs at least 40 minutes in total.' : ''} Hills and heat both push it up.</p></section>
+}
+
+/** Kilometre splits as bars, shorter pace is a longer bar, as in the mock. */
+function Splits({ sp }: { sp: NonNullable<ActDetail['splits']> }) {
+  const lo = Math.min(...sp.map((x) => x.s)), hi = Math.max(...sp.map((x) => x.s))
+  return <section class="card"><h3 class="ch">Kilometre splits, pace and heart rate</h3>
+    {sp.map((x) => <div class="spl"><span>{x.km}</span><span>{mmss(x.s)}</span><i style={`width:${40 + ((hi - x.s) / (hi - lo || 1)) * 58}%`} /><span>{num(x.hr)}</span></div>)}</section>
+}
+
+const STEP_C: Record<string, string> = { warmup: 'var(--b5)', active: 'var(--b1)', recovery: 'var(--b3)', rest: 'var(--b3)', cooldown: 'var(--b5)', other: 'var(--mute)' }
+/** One bar per interval step, taller is faster. Only steps with a speed count. */
+function StepBars({ laps, only, title }: { laps: Lap[]; only?: string; title: string }) {
+  const ls = laps.filter((l) => l.step_type !== 'lap' && (!only || l.step_type === only) && (l.avg_speed_mps ?? 0) > 0)
+  if (ls.length < 2) return null
+  const types = [...new Set(ls.map((l) => l.step_type))], sp = ls.map((l) => l.avg_speed_mps! * 3.6), nm = (l: Lap) => `${STEP[l.step_type] ?? 'Step'}${l.rep_no ? ` ${l.rep_no}` : ''}`
+  return <section class="card"><h3 class="ch">{title}, taller is faster</h3>
+    <StackedBars dates={ls.map(nm)} xf={(x) => x} h={170} yfmt={(v) => (v > 0 ? mmss(3600 / v) : '')} label={`${title}, pace per step`} legend={types.length > 1}
+      summary={`${title}: ${ls.length} steps, fastest ${mmss(3600 / Math.max(...sp))} per km, slowest ${mmss(3600 / Math.min(...sp))} per km.`}
+      stacks={types.map((t) => ({ name: STEP[t] ?? 'Step', c: STEP_C[t] ?? 'var(--mute)' }))} vals={ls.map((l, i) => types.map((t) => (l.step_type === t ? sp[i] : 0)))}
+      tip={(i) => [nm(ls[i]), `${mmss(3600 / sp[i])} /km`, `${num(ls[i].avg_hr)} bpm`]} />
+  </section>
 }
 
 function Table({ title, head, rows }: { title: string; head: string[]; rows: string[][] }) {
@@ -144,7 +166,9 @@ export function ActivityView({ d }: { d: ActResp }) {
       {run && <DynamicsCard a={a} det={det} />}
       {d.laps.length > 1 && <Table title="Laps" head={['Lap', foot ? 'Distance' : 'Distance', 'Time', foot ? 'Pace' : 'Speed', 'Heart rate']}
         rows={d.laps.map((l: Lap) => [l.step_type === 'lap' ? `Lap ${l.lap_idx + 1}` : `${STEP[l.step_type] ?? 'Lap'}${l.rep_no ? ` ${l.rep_no}` : ''}`, `${km(l.distance_m, 2)} km`, dur(l.duration_s), foot ? paceOf(l.avg_speed_mps) : l.avg_speed_mps ? num(l.avg_speed_mps * 3.6, 1) + ' km/h' : DASH, num(l.avg_hr)])} />}
-      {split.length > 0 && foot && <Table title="Kilometre splits" head={['Km', 'Pace', 'Heart rate']} rows={split.map((s) => [String(s.km), mmss(s.s), num(s.hr)])} />}
+      {split.length > 0 && foot && <Splits sp={split} />}
+      {foot && <StepBars laps={d.laps} title="Pace by step" />}
+      {foot && <StepBars laps={d.laps} only="active" title="Work reps" />}
     </div>
   </>
 }

@@ -81,6 +81,7 @@ export function buildDetail(s: S) {
   const dyn = Object.fromEntries((['str', 'vo', 'vr', 'gct', 'bal'] as const).filter((k) => s[k]?.some(fin)).map((k) => [k, downsample(s[k]!, MAXPTS, k === 'str' ? 2 : k === 'vr' ? 2 : 1)]))
   return {
     ...dyn,
+    ...(s.alt.some(fin) && { alt: downsample(s.alt, MAXPTS, 1) }),
     n: Math.min(MAXPTS, s.t.length), duration_s: t.at(-1) ?? 0,
     hr: downsample(s.hr, MAXPTS, 0), speed: downsample(s.speed, MAXPTS, 2), cad: downsample(s.cad, MAXPTS, 0), pwr: downsample(s.pwr, MAXPTS, 0),
     route: route(s.lat, s.lon), splits: splits(s), ...efficiency(s),

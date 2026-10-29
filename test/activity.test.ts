@@ -39,6 +39,7 @@ describe('efficiency and decoupling', () => {
     const e = efficiency(run(2000)); expect(e.ef).not.toBeNull(); expect(e.decoupling).toBeNull(); expect(e.why).toBe('short')
   })
   it('buildDetail stays under 300 points', () => {
-    const d = buildDetail(run(7200)); expect(d.hr.length).toBe(300); expect(d.speed.length).toBe(300); expect(d.route.length).toBe(200)
+    const d = buildDetail(run(7200)); expect(d.hr.length).toBe(300); expect(d.speed.length).toBe(300); expect(d.route.length).toBe(200); expect(d.alt?.length).toBe(300)
+    expect(buildDetail({ ...run(60), alt: [] }).alt).toBeUndefined()
   })
 })

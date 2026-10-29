@@ -42,7 +42,7 @@ export type ActRow = { id: number; start_local: string; type: string | null; spo
 export type ActList = { as_of: string; activities: ActRow[]; next_before: string | null }
 export type Lap = { lap_idx: number; step_type: string; set_no: number | null; rep_no: number | null; duration_s: number | null; distance_m: number | null; avg_speed_mps: number | null; avg_hr: number | null; max_hr: number | null; avg_power: number | null; avg_cadence: number | null; ascent_m: number | null }
 export type ActDetail = { str?: (number | null)[]; vo?: (number | null)[]; vr?: (number | null)[]; gct?: (number | null)[]; bal?: (number | null)[]
-  n: number; duration_s: number; hr: (number | null)[]; speed: (number | null)[]; cad: (number | null)[]; pwr: (number | null)[]
+  alt?: (number | null)[]; n: number; duration_s: number; hr: (number | null)[]; speed: (number | null)[]; cad: (number | null)[]; pwr: (number | null)[]
   route: [number, number][]; splits: { km: number; s: number; hr: number | null }[]; ef: number | null; decoupling: number | null; why: 'ok' | 'no_hr' | 'short' | 'variable' }
 export type ActResp = { as_of: string; activity: ActRow & { moving_s: number | null; max_hr: number | null; avg_cadence: number | null; avg_power: number | null; norm_power: number | null; aero_te: number | null; anaero_te: number | null
   load_source: string | null; rpe: number | null; feel: number | null; hr_z1_s: number | null; hr_z2_s: number | null; hr_z3_s: number | null; hr_z4_s: number | null; hr_z5_s: number | null; temp_c: number | null

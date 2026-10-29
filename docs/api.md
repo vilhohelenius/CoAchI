@@ -140,7 +140,7 @@ One GROUP BY over running activities, `weeks` up to 260 (default 26), oldest fir
 
 ## Running dynamics fields
 
-`GET /api/activities/:id` adds `avg_stride_m`, `avg_vert_osc_mm`, `avg_vert_ratio`, `avg_gct_ms`, `avg_gct_balance` (all `null` without dynamics) to `activity` and to each lap row. `detail` adds the series `str` (m), `vo` (mm), `vr` (%), `gct` (ms) and `bal` (% left) at the same length as `hr`, and leaves a series out when the file has none. `cad` is steps per minute. Needs migration `0003_dynamics.sql`.
+`GET /api/activities/:id` adds `avg_stride_m`, `avg_vert_osc_mm`, `avg_vert_ratio`, `avg_gct_ms`, `avg_gct_balance` (all `null` without dynamics) to `activity` and to each lap row. `detail` also has `alt` (metres, 1 decimal, left out when the file has no altitude; files written before this need `tsx sync/run.ts detail`). `detail` adds the series `str` (m), `vo` (mm), `vr` (%), `gct` (ms) and `bal` (% left) at the same length as `hr`, and leaves a series out when the file has none. `cad` is steps per minute. Needs migration `0003_dynamics.sql`.
 
 ## Recompute
 
