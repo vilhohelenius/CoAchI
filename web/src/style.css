@@ -131,3 +131,4 @@ input[type=range]{width:100%;accent-color:var(--link);min-height:32px}
 .pg{display:grid;gap:10px;margin-top:10px}@media(min-width:700px){.pg{grid-template-columns:1fr 1fr}}
 .spl{display:grid;grid-template-columns:2.2em 3.2em 1fr 2.6em;gap:10px;align-items:center;min-height:30px;font-size:14px}.spl i{display:block;height:12px;border-radius:6px;background:var(--link)}.spl span:last-child{text-align:right;color:var(--mute)}
 input[type=number]{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:var(--r2);min-height:44px;padding:0 12px;width:8em}
+.tbl tr.hit td{background:var(--soft)}

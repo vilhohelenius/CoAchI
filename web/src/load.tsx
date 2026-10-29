@@ -18,6 +18,9 @@ const RANGES = [['90', '90 days', 90], ['365', '1 year', 365], ['all', 'All time
 const SPORT: Record<string, string> = { run: 'Running', bike: 'Cycling', swim: 'Swimming', strength: 'Strength', walk: 'Walking' }
 const sport = (k: string) => SPORT[k] ?? k.charAt(0).toUpperCase() + k.slice(1)
 
+/** Mirrors trainingStatus() in src/metrics/status.ts, in the order it checks. */
+const RULES = [['Overreaching', 'Form below -30, or below -20 with over a third of training hard'], ['Productive', 'Fitness up more than 1.5 over 28 days'], ['Maintaining', 'Fitness within 1.5 of 28 days ago'], ['Recovery', 'Fitness down, but fatigue fell under 70% of last week and fitness is intact'], ['Maintaining', 'Fitness down, but fatigue is still at least 80% of fitness'], ['Detraining', 'Anything else, fitness down and training well below usual']]
+
 export function LoadView({ d, range, setRange, daily, setDaily }: { d: LoadResp; range: string; setRange: (r: string) => void; daily: number | null; setDaily: (n: number) => void }) {
   if (!d.days.length) return <section class="card"><p class="k">Nothing here yet</p><p class="t0">No training load has been calculated. Run a sync from Settings and come back.</p><a class="btn" href="#/settings">Open Settings</a></section>
   const last = d.days[d.days.length - 1], cut = RANGES.find((r) => r[0] === range)![2], shown = cut ? d.days.slice(-cut) : d.days
@@ -36,6 +39,12 @@ export function LoadView({ d, range, setRange, daily, setDaily }: { d: LoadResp;
         <div><b>{sgn(last.tsb)}</b><span>Form</span></div><div><b>{num(last.acwr, 2)}</b><span>Load ratio</span></div>
       </div>
       <StatusStrip days={d.days} />
+    </section>
+
+    <section class="card"><h3 class="ch">How the label is chosen</h3>
+      <div class="tw"><table class="tbl"><thead><tr><th scope="col">#</th><th scope="col">Label</th><th scope="col">When</th></tr></thead>
+        <tbody>{RULES.map(([l, w], i) => { const hit = l === last.status && RULES.findIndex((x) => x[0] === l) === i; return <tr class={hit ? 'hit' : ''}><td>{i + 1}</td><td><b>{l}</b>{hit && <small class="lab">Matches today</small>}</td><td>{w}</td></tr> })}</tbody></table></div>
+      <span class="lab">The first rule that fits wins. Under 28 days of history there is no label.</span>
     </section>
 
     <h2 class="sh">History</h2>

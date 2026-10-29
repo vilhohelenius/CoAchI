@@ -31,6 +31,7 @@ const noop = () => {}
 describe('page renders', () => {
   it('Load, normal and sparse', () => {
     const html = render(h(LoadView, { d: load as never, range: '90', setRange: noop, daily: null, setDaily: noop }))
+    expect(html).toContain('How the label is chosen'); expect(html).toContain('Matches today')
     for (const s of ['Productive', 'Fitness and fatigue, 90 days', 'Running', 'Cycling', 'Fewer than 5 sessions', 'Next 21 days', 'Fitness on day 21']) expect(html).toContain(s)
     clean(html)
     const bare = render(h(LoadView, { d: { as_of: 'x', days: [{ date: '2030-06-01', load: null, ctl: null, atl: null, tsb: null, tsb_end: null, acwr: null, ramp7: null, status: null, warming_up: 1 }] }, range: 'all', setRange: noop, daily: 40, setDaily: noop }))
