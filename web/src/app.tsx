@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 import { TodayPage } from './today'
 import { Settings } from './settings'
-import { LoadPage } from './load'
-import { RecoveryPage } from './recovery'
-import { IntensityPage } from './intensity'
-import { DynamicsPage } from './dynamics'
 import { GoalsPage } from './goals'
 import { MileagePage } from './mileage'
 import { RecordsPage } from './records'
@@ -12,9 +8,11 @@ import { ActivitiesPage, ActivityPage } from './activities'
 import { StepsPage } from './steps'
 import { HeatmapPage } from './heatmap'
 import { ShoesPage } from './shoes'
+import { InsightsPage } from './insights'
 import { Nav, GROUPS } from './nav'
 
-const NAMES = GROUPS.flatMap((g) => g[1].map((v) => v[0]))
+const OLD = ['load', 'recovery', 'intensity', 'dynamics'] // the pre-hub routes still open, as insight pages
+const NAMES = [...GROUPS.flatMap((g) => g[1].map((v) => v[0])), ...OLD]
 const split = (h: string) => h.replace(/^#\/?/, '').split('/')
 
 export function App() {
@@ -27,9 +25,9 @@ export function App() {
   }, [])
   const known = NAMES.includes(r)
   return <>
-    <Nav r={known ? r : 'today'} />
+    <Nav r={OLD.includes(r) ? 'insights' : known ? r : 'today'} />
     <main id="main">
-      {r === 'activities' ? (parts[1] ? <ActivityPage key={parts[1]} id={parts[1]} /> : <ActivitiesPage />) : r === 'mileage' ? <MileagePage /> : r === 'steps' ? <StepsPage /> : r === 'records' ? <RecordsPage /> : r === 'heatmap' ? <HeatmapPage /> : r === 'shoes' ? <ShoesPage /> : r === 'today' || !known ? <TodayPage /> : r === 'settings' ? <Settings /> : r === 'load' ? <LoadPage /> : r === 'recovery' ? <RecoveryPage /> : r === 'intensity' ? <IntensityPage /> : r === 'dynamics' ? <DynamicsPage /> : <GoalsPage />}
+      {r === 'activities' ? (parts[1] ? <ActivityPage key={parts[1]} id={parts[1]} /> : <ActivitiesPage />) : r === 'mileage' ? <MileagePage /> : r === 'steps' ? <StepsPage /> : r === 'records' ? <RecordsPage /> : r === 'heatmap' ? <HeatmapPage /> : r === 'shoes' ? <ShoesPage /> : r === 'today' || !known ? <TodayPage /> : r === 'settings' ? <Settings /> : r === 'insights' || OLD.includes(r) ? <InsightsPage key={hash} sub={OLD.includes(r) ? r : parts[1]} /> : <GoalsPage />}
     </main>
   </>
 }

@@ -13,7 +13,7 @@ const fixtureFor = (u: URL) => {
 }
 let fail: (u: URL) => boolean, root: HTMLElement
 const settle = () => vi.waitFor(() => expect(root.querySelector('[aria-busy]')).toBeNull())
-const go = async (hash: string) => { location.hash = hash; await vi.waitFor(() => expect(root.querySelector('.nav [aria-current]')?.getAttribute('href')).toBe(`#/${hash.replace(/^#?\/?/, '').split('/')[0]}`)); await settle() }
+const go = async (hash: string) => { location.hash = hash; await vi.waitFor(() => expect(root.querySelector('.nav [aria-current]')?.getAttribute('href')).toBe(`#/${hash.replace(/^#?\/?/, '').split('/')[0].replace(/^(load|recovery|intensity|dynamics)$/, 'insights')}`)); await settle() }
 
 beforeEach(async () => {
   fail = () => false; location.hash = '#/today'
@@ -32,7 +32,7 @@ afterEach(() => { render(null, root); root.remove(); vi.unstubAllGlobals() })
 describe('frontend end to end', () => {
   it('every route renders data and the nav marks the current page', async () => {
     await settle()
-    for (const r of ['today', 'load', 'recovery', 'intensity', 'dynamics', 'goals', 'mileage', 'steps', 'records', 'heatmap', 'shoes', 'activities', 'activities/100', 'activities/97', 'settings']) {
+    for (const r of ['today', 'load', 'recovery', 'intensity', 'dynamics', 'insights', ...['status', 'sleep', 'recovery', 'hrv', 'rhr', 'battery', 'load', 'intensity', 'forecast', 'dynamics'].map((k) => 'insights/' + k), 'goals', 'mileage', 'steps', 'records', 'heatmap', 'shoes', 'activities', 'activities/100', 'activities/97', 'settings']) {
       await go(`#/${r}`)
       expect(root.querySelector('h1')?.textContent, r).toBeTruthy()
       expect(root.querySelector('.err'), r).toBeNull()
@@ -91,6 +91,19 @@ describe('frontend end to end', () => {
     sel.value = '2'; sel.dispatchEvent(new Event('change'))
     await vi.waitFor(() => expect(calls).toEqual([['/api/activities/100', 'PATCH', '{"shoe_id":2}']]))
     await vi.waitFor(() => expect(root.textContent).toContain('of 500 km'))
+  })
+  it('insights hub links every sub page, Explain this opens its text, and the back link returns', async () => {
+    await go('#/insights')
+    await vi.waitFor(() => expect(root.querySelectorAll('a.ixc').length).toBe(10))
+    expect([...root.querySelectorAll('a.ixc')].map((a) => a.getAttribute('href'))).toContain('#/insights/hrv')
+    await go('#/insights/hrv')
+    await vi.waitFor(() => expect(root.querySelector('.xp')).toBeTruthy())
+    expect(root.querySelector('.ex')).toBeNull()
+    ;(root.querySelector('.xp') as HTMLButtonElement).click()
+    await vi.waitFor(() => expect(root.querySelector('.ex')?.textContent).toMatch(/ms/))
+    expect(root.querySelector('a.crumb')?.getAttribute('href')).toBe('#/insights')
+    await go('#/insights/nope')
+    await vi.waitFor(() => expect(root.textContent).toContain('does not exist'))
   })
   it('unknown route falls back to Today', async () => {
     location.hash = '#/nope'

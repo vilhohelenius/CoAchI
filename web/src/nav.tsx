@@ -8,10 +8,10 @@ type V = [string, string, keyof typeof I]
 export const GROUPS: [string, V[]][] = [
   ['Daily', [['today', 'Today', 'today']]],
   ['Training', [['activities', 'Activities', 'act'], ['mileage', 'Mileage', 'km'], ['steps', 'Steps', 'steps'], ['records', 'Records', 'rec'], ['heatmap', 'Heatmap', 'map'], ['shoes', 'Shoes', 'shoe']]],
-  ['Analysis', [['load', 'Load', 'ins'], ['recovery', 'Recovery', 'ins'], ['intensity', 'Intensity', 'ins'], ['dynamics', 'Dynamics', 'ins']]],
+  ['Analysis', [['insights', 'Insights', 'ins']]],
   ['You', [['goals', 'Goals', 'goal'], ['settings', 'Settings', 'gear']]],
 ]
-const TABS = ['today', 'activities', 'mileage', 'load']
+const TABS = ['today', 'activities', 'mileage', 'insights']
 
 // Theme: auto follows the system, the choice is kept in this browser only.
 type Mode = 'auto' | 'light' | 'dark'

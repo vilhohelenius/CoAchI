@@ -14,7 +14,7 @@ const NOTE: Record<string, string> = {
   normal: 'HRV and resting heart rate agree, nothing unusual.',
 }
 const avg = (xs: (number | null | undefined)[]) => { const v = xs.filter((x): x is number => typeof x === 'number'); return { m: v.length ? mean(v) : null, n: v.length } }
-const STAGE = [['deep_s', 'Deep', 'var(--b5)'], ['rem_s', 'REM', 'var(--s-peak)'], ['light_s', 'Light', 'var(--b3)'], ['awake_s', 'Awake', 'var(--b2)']] as const
+export const STAGE = [['deep_s', 'Deep', 'var(--b5)'], ['rem_s', 'REM', 'var(--s-peak)'], ['light_s', 'Light', 'var(--b3)'], ['awake_s', 'Awake', 'var(--b2)']] as const
 
 export function RecoveryView({ d }: { d: RecoveryResp }) {
   if (!d.days.length) return <section class="card"><p class="k">Nothing here yet</p><p class="t0">No recovery data has synced. Run a sync from Settings and come back.</p><a class="btn" href="#/settings">Open Settings</a></section>

@@ -81,7 +81,7 @@ function SleepCard({ d }: { d: Today }) {
 }
 
 const SEGS = ['Poor', 'Low', 'Moderate', 'High']
-function ReadinessCard({ d }: { d: Today }) {
+export function ReadinessCard({ d }: { d: Today }) {
   const r = d.readiness
   if (!r || r.score == null || r.confidence === 'none') return <section class="card"><p class="k">Readiness</p><p class="empty">Not enough data yet to score today.</p></section>
   const on = r.label === 'high' ? 3 : r.label === 'moderate' ? 2 : r.label === 'low' ? 1 : 0, avail = r.components.filter((c) => c.available)
