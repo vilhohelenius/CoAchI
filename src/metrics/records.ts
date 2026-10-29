@@ -6,9 +6,9 @@ export type S = { t: N[]; dist: N[]; pwr: N[]; hr: N[]; alt: N[] }
 
 export const DISTANCES = [['1k', 1000], ['1mi', 1609.344], ['5k', 5000], ['10k', 10000], ['hm', 21097.5]] as const
 export const DURATIONS = [180, 360, 720, 1200]   // seconds, for critical speed
-export const POWERS = [60, 300, 1200]            // seconds
-const MAX_GAP = 10     // s between records before a window is cut (pause, lost signal)
-const MAX_STEP = 12    // m/s between two records, faster is a GPS jump
+const MAX_GAP = 60     // s between records before a window is cut. Older files use smart recording, so 10 to 30 s steps are normal
+const TOL_M = 10      // m a distance effort may fall short of its label
+const MAX_STEP = 25    // m/s between two records, faster is a GPS jump (a 13 m blip in one second is normal noise)
 const MAX_SPEED = 9    // m/s over a whole effort, faster is not a runner
 const SKIP_S = 480     // steady blocks start after the first 8 minutes (HR lag)
 const BLOCK = 300
@@ -27,8 +27,20 @@ export function segments(t: N[], d: N[]): [number, number][] {
   return out.filter(([x, y]) => y > x)
 }
 
+/** Timer clock: a gap of over 3 s that moved under 1 m/s on average is a paused timer (a stop at the lights) and counts as 1 s, as Garmin does. Gaps that moved at running speed are sparse recording and stay. */
+export function timerClock(t: N[], d: N[]): N[] {
+  let off = 0
+  return t.map((x, i) => {
+    if (x == null || d[i] == null) return x
+    const p = i && t[i - 1] != null && d[i - 1] != null ? i - 1 : -1
+    if (p >= 0) { const dt = x - t[p]!, dd = d[i]! - d[p]!; if (dt > 3 && dd >= 0 && dd < dt) off += dt - 1 }
+    return x - off
+  })
+}
+
 /** Fastest time over exactly `D` metres, interpolated between records. Null when no continuous stretch is long enough. */
-export function bestTime(t: N[], d: N[], D: number): number | null {
+export function bestTime(t0: N[], d: N[], D0: number): number | null {
+  const t = timerClock(t0, d), D = D0 - TOL_M // a watch that logged 9999 m for a 10 km race still counts, time scaled to the full distance
   let best = Infinity
   for (const [a, b] of segments(t, d)) {
     let i = a
@@ -40,11 +52,12 @@ export function bestTime(t: N[], d: N[], D: number): number | null {
       if (dt > 0 && D / dt <= MAX_SPEED) best = Math.min(best, dt)
     }
   }
-  return Number.isFinite(best) ? best : null
+  return Number.isFinite(best) ? (best * D0) / D : null
 }
 
 /** Furthest distance covered in exactly `T` seconds. */
-export function bestDistance(t: N[], d: N[], T: number): number | null {
+export function bestDistance(t0: N[], d: N[], T: number): number | null {
+  const t = timerClock(t0, d)
   let best = 0
   for (const [a, b] of segments(t, d)) {
     let i = a
@@ -56,16 +69,6 @@ export function bestDistance(t: N[], d: N[], T: number): number | null {
       if ((d[j]! - ds) / T <= MAX_SPEED) best = Math.max(best, d[j]! - ds)
     }
   }
-  return best > 0 ? best : null
-}
-
-/** Best mean power over `T` seconds. Needs gap-free 1 Hz power samples. */
-export function bestPower(t: N[], p: N[], T: number): number | null {
-  const n = p.length, c = [0], bad = [0]
-  for (let i = 0; i < n; i++) { c.push(c[i] + (p[i] ?? 0)); bad.push(bad[i] + (p[i] == null || t[i] == null || p[i]! > 2500 ? 1 : 0)) }
-  let best = 0
-  for (let i = 0; i + T <= n; i++)
-    if (bad[i + T] === bad[i] && t[i + T - 1]! - t[i]! === T - 1) best = Math.max(best, (c[i + T] - c[i]) / T)
   return best > 0 ? best : null
 }
 
@@ -98,7 +101,6 @@ export function runEfforts(s: S): Record<string, [number, number | null]> {
   const o: Record<string, [number, number | null]> = {}
   for (const [l, D] of DISTANCES) { const v = bestTime(s.t, s.dist, D); if (v != null) o[l] = [v, null] }
   for (const T of DURATIONS) { const v = bestDistance(s.t, s.dist, T); if (v != null) o[`t${T}`] = [v, null] }
-  for (const T of POWERS) { const v = bestPower(s.t, s.pwr, T); if (v != null) o[`p${T}`] = [v, null] }
   const b = steadyBlocks(s)
   if (b.length) { o.ss_hr = [med(b.map((x) => x.hr))!, b.length]; o.ss_v = [med(b.map((x) => x.v))!, b.length] }
   return o
@@ -108,7 +110,7 @@ export function runEfforts(s: S): Record<string, [number, number | null]> {
 export type Row = { id: number; label: string; value: number; n: number | null; date: string }
 export type Prof = { rest: number; max: number }
 const lowerIsBetter = (l: string) => !l.startsWith('p') && !l.startsWith('t') // time labels
-export const BEST_LABELS = [...DISTANCES.map((d) => d[0]), ...POWERS.map((p) => `p${p}`)] as string[]
+export const BEST_LABELS = DISTANCES.map((d) => d[0]) as string[]
 
 /** Rows to keep in best_efforts: all-time top 3 and every personal best when it was set. */
 export function bestRows(rows: Row[]) {
@@ -125,6 +127,24 @@ export function bestRows(rows: Row[]) {
 }
 
 /** ACSM flat running equation with %HRR standing in for %VO2 reserve: VO2max = 3.5 + 0.2 * (m/min) / %HRR. Null outside 50 to 92 %HRR or 25 to 85. */
+/** Oxygen cost of running at `v` m/min (Daniels and Gilbert). */
+export const danielsCost = (v: number) => -4.6 + 0.182258 * v + 0.000104 * v * v
+/** Fraction of VO2max a runner can hold for `t` minutes. */
+const danielsFraction = (t: number) => 0.8 + 0.1894393 * Math.exp(-0.012778 * t) + 0.2989558 * Math.exp(-0.1932605 * t)
+/** Race time in seconds for a given VO2max (VDOT), found by bisection. */
+export function vdotTime(vdot: number, D: number): number {
+  let lo = D / 600 / 60 * 60, hi = D / 60 * 60 // seconds: 10 m/s down to 1 m/s
+  for (let i = 0; i < 60; i++) {
+    const t = (lo + hi) / 2, m = t / 60
+    if (danielsCost(D / m) > vdot * danielsFraction(m)) lo = t; else hi = t
+  }
+  return (lo + hi) / 2
+}
+/** VDOT (Daniels) that fits a race of distance D run in t seconds. */
+export function vdotOf(t: number, D: number): number {
+  const m = t / 60
+  return (danielsCost(D / m) / danielsFraction(m))
+}
 export function vo2From(hr: number, v: number, p: Prof): number | null {
   const f = (hr - p.rest) / (p.max - p.rest)
   if (!(f >= 0.5 && f <= 0.92)) return null
@@ -149,13 +169,19 @@ export const TARGETS = [['5k', 5000], ['10k', 10000], ['hm', 21097.5], ['maratho
 export type Source = { label: string; dist_m: number; time_s: number; date: string }
 /** Point and range from the source closest in distance. Range is the exponent plus and minus `spread`. */
 export function predictions(sources: Source[], today: string, k: number, cs: { cs: number; dprime: number } | null, spread = 0.03) {
+  // fitness from the best 5 km, 10 km or half marathon effort; 1 km and mile efforts are too anaerobic for it
+  const vs = sources.filter((x) => ['5k', '10k', 'hm'].includes(x.label)).map((x) => vdotOf(x.time_s, x.dist_m)), vdot = vs.length ? Math.max(...vs) : null
   return TARGETS.map(([label, D]) => {
-    const src = [...sources].sort((a, b) => Math.abs(Math.log(D / a.dist_m)) - Math.abs(Math.log(D / b.dist_m)))[0]
-    if (!src) return { label, dist_m: D, point_s: null, lo_s: null, hi_s: null, cs_s: null, source: null, flags: [] as string[] }
-    const age = diffDays(src.date, today), flags = [...(age > 56 ? ['old'] : []), ...(D / src.dist_m > 4 ? ['short'] : [])]
-    return { label, dist_m: D, point_s: riegel(src.time_s, src.dist_m, D, k), lo_s: riegel(src.time_s, src.dist_m, D, k - spread), hi_s: riegel(src.time_s, src.dist_m, D, k + spread),
-      // CS holds for efforts of about 2 to 40 minutes, so it cross-checks 5 km and 10 km only
-      cs_s: cs && D <= 10000 && D > cs.dprime ? (D - cs.dprime) / cs.cs : null, source: { ...src, age_days: age }, flags }
+    // best projection among recent efforts, from 0.4x to 4.5x the target distance. A recent easy long run must not drag the prediction down
+    const src = sources.filter((x) => D / x.dist_m <= 4.5 && D / x.dist_m >= 0.4).sort((x, y) => riegel(x.time_s, x.dist_m, D, k) - riegel(y.time_s, y.dist_m, D, k))[0]
+    const ends = src ? [k - spread, k + spread].map((e) => riegel(src.time_s, src.dist_m, D, e)) : [] // below the source distance a lower exponent is the slower end
+    const vt = vdot ? vdotTime(vdot, D) : null, rt = src ? riegel(src.time_s, src.dist_m, D, k) : null
+    // fitness model first (a hard effort is rarely run on the day), but never slower than what a real effort already shows
+    const useV = vt != null && (rt == null || vt <= rt), cs_s = cs && D <= 10000 && D > cs.dprime ? (D - cs.dprime) / cs.cs : null
+    if (useV) return { label, dist_m: D, point_s: vt, lo_s: vt! * (1 - spread), hi_s: vt! * (1 + spread), cs_s, model: 'vdot' as const, vdot, source: null, flags: [] as string[] }
+    if (!src) return { label, dist_m: D, point_s: null, lo_s: null, hi_s: null, cs_s: null, model: null, vdot: null, source: null, flags: [] as string[] }
+    const age = diffDays(src.date, today), flags = [...(age > 56 ? ['old'] : []), ...(D / src.dist_m > 3 ? ['short'] : [])]
+    return { label, dist_m: D, point_s: rt, lo_s: Math.min(...ends), hi_s: Math.max(...ends), cs_s, model: 'riegel' as const, vdot: null, source: { ...src, age_days: age }, flags }
   })
 }
 

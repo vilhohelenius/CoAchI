@@ -207,8 +207,9 @@ describe('records and fitness endpoints', () => {
     expect(r.records.some((x: any) => x.label === 'p60')).toBe(false)
     const f = await get('/api/fitness-estimates?riegel=1.08', m)
     expect(f).toMatchObject({ available: true, riegel: 1.08, cs: { ok: true, n: 4 }, vo2: { n: 3 } }); expect(f.vo2.value).toBeGreaterThan(40); expect(f.vo2.history).toHaveLength(26)
-    const mar = f.predictions.find((p: any) => p.label === 'marathon')
-    expect(mar.point_s).toBeGreaterThan(f.predictions.find((p: any) => p.label === 'hm').point_s); expect(mar.flags).toContain('short'); expect(mar.lo_s).toBeLessThan(mar.hi_s)
+    const get_ = (l: string) => f.predictions.find((p: any) => p.label === l)
+    expect(get_('10k').point_s).toBeGreaterThan(get_('5k').point_s); expect(get_('10k').lo_s).toBeLessThan(get_('10k').hi_s)
+    expect(get_('marathon').point_s).toBeGreaterThan(get_('10k').point_s) // fitness model reaches beyond the source, more than 4.5x short of a marathon
     expect((await get('/api/fitness-estimates?riegel=9', m)).riegel).toBe(1.12)
   })
 })

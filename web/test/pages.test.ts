@@ -107,7 +107,7 @@ describe('page renders', () => {
   })
   it('Records and predictions, normal and null-heavy', () => {
     const html = render(h(RecordsView, { d: recs as never, sel: '5k', setSel: noop }))
-    for (const x of ['Best efforts across 142 runs', 'Half marathon', '21:00', 'How your best 5 km changed', 'Power, 5 min', 'Next:']) expect(html).toContain(x)
+    for (const x of ['Best efforts across 142 runs', 'Half marathon', '21:00', 'How your best 5 km changed', 'Next:']) expect(html).toContain(x)
     clean(html)
     const one = render(h(RecordsView, { d: { ...recs, records: [{ ...recs.records[2], timeline: recs.records[2].timeline.slice(0, 1) }] } as never, sel: '5k', setSel: noop }))
     expect(one).toContain('Only one record so far'); clean(one)

@@ -242,35 +242,6 @@
      "activity_id": 102
     }
    ]
-  },
-  {
-   "label": "p300",
-   "unit": "W",
-   "best": [
-    {
-     "rank": 1,
-     "value": 312,
-     "date": "2030-04-21",
-     "activity_id": 104
-    }
-   ],
-   "timeline": [
-    {
-     "date": "2029-11-18",
-     "value": 280,
-     "activity_id": 100
-    },
-    {
-     "date": "2030-02-09",
-     "value": 296,
-     "activity_id": 101
-    },
-    {
-     "date": "2030-04-21",
-     "value": 312,
-     "activity_id": 102
-    }
-   ]
   }
  ]
 }

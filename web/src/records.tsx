@@ -5,7 +5,7 @@ import { DASH, day, num } from './fmt'
 import { Err, Page, Tile } from './today'
 import type { FitnessResp, Prediction, RecordsResp } from './types'
 
-const NAMES: Record<string, string> = { '1k': '1 km', '1mi': '1 mile', '5k': '5 km', '10k': '10 km', hm: 'Half marathon', marathon: 'Marathon', p60: 'Power, 1 min', p300: 'Power, 5 min', p1200: 'Power, 20 min' }
+const NAMES: Record<string, string> = { '1k': '1 km', '1mi': '1 mile', '5k': '5 km', '10k': '10 km', hm: 'Half marathon', marathon: 'Marathon' }
 const DIST: Record<string, number> = { '1k': 1000, '1mi': 1609.344, '5k': 5000, '10k': 10000, hm: 21097.5 }
 const K = [1.04, 1.06, 1.08]
 const short = (d: string) => day(d, { day: 'numeric', month: 'short', year: 'numeric' })
@@ -30,9 +30,9 @@ export function RecordsView({ d, sel, setSel }: { d: RecordsResp; sel: string; s
       <table class="rt"><thead><tr><th>Distance</th><th>Best</th><th>{rows.some((r) => r.unit === 's') ? 'Pace' : ''}</th><th>Set on</th></tr></thead><tbody>
         {rows.map((r) => { const b = r.best[0], w2 = r.unit === 'W'; return <tr>
           <td>{NAMES[r.label]}{r.best.length > 1 && <small class="nx">Next: {r.best.slice(1).map((x) => w2 ? `${num(x.value)} W` : hms(x.value)).join(', ')}</small>}</td>
-          <td class="b">{w2 ? `${num(b.value)} W` : hms(b.value)}</td><td>{w2 ? '' : `${hms(b.value / (DIST[r.label] / 1000))} /km`}</td><td>{short(b.date)}</td></tr> })}
+          <td class="b">{w2 ? `${num(b.value)} W` : hms(b.value)}</td><td>{w2 ? '' : `${hms(b.value / (DIST[r.label] / 1000))} /km`}</td><td>{short(b.date)}{b.activity_id < 0 && <small class="nx">Entered by hand</small>}</td></tr> })}
       </tbody></table>
-      <p class="cap2">Fastest continuous stretch of each distance, measured on moving distance. Stretches with a recording gap or a GPS jump are skipped. Power needs unbroken power readings.</p>
+      <p class="cap2">Fastest continuous stretch of each distance, measured on moving distance. Stretches with a recording gap or a GPS jump are skipped.</p>
     </section>
     <section class="card wide"><h3 class="ch">How your best {NAMES[cur.label].toLowerCase()} changed</h3>
       <div class="tools"><div class="seg w" role="group" aria-label="Distance">{d.records.filter((r) => r.timeline.length).map((r) => <button type="button" aria-pressed={r.label === cur.label} onClick={() => setSel(r.label)}>{NAMES[r.label].replace('Half marathon', 'Half')}</button>)}</div></div>

@@ -48,6 +48,14 @@ if (mode === 'recompute') {
   process.exit(0)
 }
 
+if (mode === 'effort') { // effort <label> <m:ss|h:mm:ss> <date> [note]
+  const [, label, time, date, note] = args, sec = (time ?? '').split(':').reduce((a, x) => a * 60 + Number(x), 0)
+  if (!['1k', '1mi', '5k', '10k', 'hm'].includes(label ?? '') || !(sec > 0) || !/^\d{4}-\d\d-\d\d$/.test(date ?? '')) { console.log('usage: effort <1k|1mi|5k|10k|hm> <m:ss> <YYYY-MM-DD> [note] [--target remote]'); process.exit(1) }
+  await db.batch([['INSERT INTO manual_efforts (label,value,date,note) VALUES (?,?,?,?)', [label!, sec, date!, note ?? null]]])
+  log('effort', { label, sec, date })
+  process.exit(0)
+}
+
 if (mode === 'records') {
   await recordsStage(db, localToday(), outDir, args.includes('--full')) // reads exports/fit, writes to the chosen target
   process.exit(0)
