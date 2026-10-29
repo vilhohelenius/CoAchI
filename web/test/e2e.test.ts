@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs'
 const fx = (n: string) => readFileSync(`web/fixtures/${n}.json`, 'utf8')
 const fixtureFor = (u: URL) => {
   const by = u.searchParams.get('by'), p = u.pathname
-  return p === '/api/mileage' ? `mileage-${by === 'month' || by === 'year' ? by : 'week'}` : p === '/api/mileage/compare' ? 'mileage-compare' : p === '/api/activities' ? 'activities' : p === '/api/steps' ? 'steps' : p === '/api/records' ? 'records' : p === '/api/fitness-estimates' ? 'fitness-estimates'
+  return p === '/api/mileage' ? `mileage-${by === 'month' || by === 'year' ? by : 'week'}` : p === '/api/mileage/compare' ? 'mileage-compare' : p === '/api/activities' ? 'activities' : p === '/api/steps' ? 'steps' : p === '/api/records' ? 'records' : p === '/api/routes' ? 'routes' : p === '/api/fitness-estimates' ? 'fitness-estimates'
     : /^\/api\/activities\/\d+$/.test(p) ? (p.endsWith('/97') ? 'activity-strength' : 'activity-run') : /^\/api\/(today|goals|load|recovery|intensity|dynamics)$/.exec(p)?.[1]
 }
 let fail: (u: URL) => boolean, root: HTMLElement
@@ -32,7 +32,7 @@ afterEach(() => { render(null, root); root.remove(); vi.unstubAllGlobals() })
 describe('frontend end to end', () => {
   it('every route renders data and the nav marks the current page', async () => {
     await settle()
-    for (const r of ['today', 'load', 'recovery', 'intensity', 'dynamics', 'goals', 'mileage', 'steps', 'records', 'activities', 'activities/100', 'activities/97', 'settings']) {
+    for (const r of ['today', 'load', 'recovery', 'intensity', 'dynamics', 'goals', 'mileage', 'steps', 'records', 'heatmap', 'activities', 'activities/100', 'activities/97', 'settings']) {
       await go(`#/${r}`)
       expect(root.querySelector('h1')?.textContent, r).toBeTruthy()
       expect(root.querySelector('.err'), r).toBeNull()
@@ -68,6 +68,15 @@ describe('frontend end to end', () => {
     await go('#/goals')
     ;(root.querySelector('form button[type=submit]') as HTMLButtonElement).click()
     await vi.waitFor(() => expect(root.querySelector('form [role=status]')?.textContent).toContain('Check the numbers'))
+  })
+  it('heatmap year filter redraws the lines', async () => {
+    await go('#/heatmap')
+    const n = () => root.querySelectorAll('svg.map path').length
+    expect(n()).toBe(8)
+    const btn = [...root.querySelectorAll('.seg button')].find((b) => b.textContent === '2029') as HTMLButtonElement
+    btn.click()
+    await vi.waitFor(() => expect(n()).toBe(3))
+    expect(root.querySelector('.seg [aria-pressed=true]')?.textContent).toBe('2029')
   })
   it('unknown route falls back to Today', async () => {
     location.hash = '#/nope'

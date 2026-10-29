@@ -5,7 +5,7 @@ Single-user training dashboard + AI coach on Cloudflare. Pull-only Garmin Person
 ## 1. Stack (decided)
 
 - TypeScript everywhere. Worker router: **Hono**. Frontend: **Vite + Preact** SPA, built into `web/dist`, served by Workers static assets (one deploy, one origin, no CORS).
-- Charts: **uPlot** (time series, tiny, fast). Maps: **Leaflet** + canvas polyline layer (OSM tiles; heatmap = low-alpha polylines drawn on canvas, not a raster heat plugin).
+- Charts: **uPlot** (time series, tiny, fast). Maps: no map library and no basemap tiles (tiles would tell a third party where you run). The heatmap is low-alpha SVG polylines from one compact `routes/all.json`.
 - FIT: **`@garmin/fitsdk`** (official, pure JS ESM, no Node deps, runs in Workers). Unzip: **`fflate`** (zip holds one `.fit`). Rejected: `fit-file-parser` (older, Buffer polyfills), WASM anything.
 - Tests: **vitest** + `@cloudflare/vitest-pool-workers` (real Miniflare D1/R2), **Playwright** for UI smoke.
 - **Hosting: $0 (decided).** Worker on the free plan serves only the app/API/coach/MCP. Sync, FIT parsing and metric recompute run in a **GitHub Actions** Node job that writes to D1 (REST) and R2 (S3 API). Reason: free Workers allow 10 ms CPU per invocation, which a 374 KB FIT decode can exceed. Details in sections 5 and 14. `garmin/*`, `metrics/*` are plain TS with no Worker-only APIs, so the same code runs in Node (Action) and could move to Workers Paid ($5/mo) if the Action route annoys.
@@ -216,7 +216,7 @@ Tool results carry `as_of` and `n`/`confidence` so the model can hedge.
 - **Dashboard + API (`coachi` Worker):** Cloudflare Access applied to the Worker's `workers.dev` URL. Verified: Cloudflare now offers one-click "Enable Cloudflare Access" for workers.dev and preview URLs (Workers > Settings > Domains & Routes), so **no custom domain is needed** ([Cloudflare docs](https://developers.cloudflare.com/workers/configuration/cloudflare-access/), [announcement](https://blog.cloudflare.com/workers-protected-by-access/)). Policy = your email (one-time PIN). Free Zero Trust tier. Fallback if that ever fails for this account: cheapest is a ~$10/yr domain on Cloudflare DNS plus a custom-domain route; nothing else changes.
 - Worker also verifies `Cf-Access-Jwt-Assertion` (JWKS `https://<team>.cloudflareaccess.com/cdn-cgi/access/certs`, check `aud`) on every `/api/*` request, so misconfigured Access cannot expose data. Local dev: `DEV_BYPASS_AUTH=1`, never in prod.
 - Worker secrets (`wrangler secret put`): `GITHUB_DISPATCH_TOKEN`, `ACCESS_CLIENT_ID`/`ACCESS_CLIENT_SECRET`/`ACCESS_*_URL`/`COOKIE_ENCRYPTION_KEY` (MCP Worker), optional `ANTHROPIC_API_KEY`, `NTFY_URL`. Vars: `CF_ACCESS_AUD`, `CF_ACCESS_TEAM`, `COACH_MODEL`, `COACH_MONTHLY_USD_CAP=5`, `COACH_DAILY`.
-- Health + GPS data: R2/D1 private; no analytics scripts; OSM tiles are the only third-party request from the browser. Weather (later) via Open-Meteo sends rounded coordinates server-side. Coach API calls send only tool outputs (aggregates, no raw GPS) to Anthropic. No heatmap privacy zone (decided).
+- Health + GPS data: R2/D1 private; no analytics scripts; the browser makes no third-party requests (no map tiles). Weather (later) via Open-Meteo sends rounded coordinates server-side. Coach API calls send only tool outputs (aggregates, no raw GPS) to Anthropic. No heatmap privacy zone (decided).
 
 ## 10. Cost estimate (monthly, steady state)
 

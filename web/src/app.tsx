@@ -10,6 +10,7 @@ import { MileagePage } from './mileage'
 import { RecordsPage } from './records'
 import { ActivitiesPage, ActivityPage } from './activities'
 import { StepsPage } from './steps'
+import { HeatmapPage } from './heatmap'
 import { Nav, GROUPS } from './nav'
 
 const NAMES = GROUPS.flatMap((g) => g[1].map((v) => v[0]))
@@ -27,7 +28,7 @@ export function App() {
   return <>
     <Nav r={known ? r : 'today'} />
     <main id="main">
-      {r === 'activities' ? (parts[1] ? <ActivityPage key={parts[1]} id={parts[1]} /> : <ActivitiesPage />) : r === 'mileage' ? <MileagePage /> : r === 'steps' ? <StepsPage /> : r === 'records' ? <RecordsPage /> : r === 'today' || !known ? <TodayPage /> : r === 'settings' ? <Settings /> : r === 'load' ? <LoadPage /> : r === 'recovery' ? <RecoveryPage /> : r === 'intensity' ? <IntensityPage /> : r === 'dynamics' ? <DynamicsPage /> : <GoalsPage />}
+      {r === 'activities' ? (parts[1] ? <ActivityPage key={parts[1]} id={parts[1]} /> : <ActivitiesPage />) : r === 'mileage' ? <MileagePage /> : r === 'steps' ? <StepsPage /> : r === 'records' ? <RecordsPage /> : r === 'heatmap' ? <HeatmapPage /> : r === 'today' || !known ? <TodayPage /> : r === 'settings' ? <Settings /> : r === 'load' ? <LoadPage /> : r === 'recovery' ? <RecoveryPage /> : r === 'intensity' ? <IntensityPage /> : r === 'dynamics' ? <DynamicsPage /> : <GoalsPage />}
     </main>
   </>
 }

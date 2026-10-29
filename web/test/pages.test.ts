@@ -23,6 +23,8 @@ import intensity from '../fixtures/intensity.json'
 import { StepsView } from '../src/steps'
 import steps from '../fixtures/steps.json'
 import goals from '../fixtures/goals.json'
+import { HeatmapView } from '../src/heatmap'
+import routes from '../fixtures/routes.json'
 
 const text = (html: string) => html.replace(/<[^>]*>/g, ' ')
 const clean = (html: string) => { expect(text(html)).not.toMatch(/null|NaN|undefined|[—;]/) }
@@ -121,6 +123,15 @@ describe('page renders', () => {
     expect(routePath([[1, 1]])).toBeNull()
     const r = routePath([[50, 8], [50.01, 8.02], [50.02, 8]])!
     for (const n of r.d.match(/-?\d+\.\d/g)!.map(Number)) { expect(n).toBeGreaterThanOrEqual(0); expect(n).toBeLessThanOrEqual(300) }
+  })
+  it('Heatmap draws one faint line per run inside the box, and degrades when empty', () => {
+    const html = render(h(HeatmapView, { d: routes as never }))
+    expect(html.match(/<path /g)!.length).toBe(routes.runs.length)
+    for (const x of ['8 runs', 'All years', '2029', '2030', 'no background on purpose']) expect(html).toContain(x)
+    expect(html).not.toContain('<image'); expect(html).not.toContain('http')
+    for (const n of html.match(/[ML]-?\d+\.\d/g)!.map((x) => Number(x.slice(1)))) { expect(n).toBeGreaterThanOrEqual(-1); expect(n).toBeLessThanOrEqual(801) }
+    clean(html)
+    expect(render(h(HeatmapView, { d: { v: 1, runs: [] } }))).toContain('No routes yet')
   })
   it('Records and predictions, normal and null-heavy', () => {
     const html = render(h(RecordsView, { d: recs as never, sel: '5k', setSel: noop }))

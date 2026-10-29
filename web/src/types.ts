@@ -61,3 +61,7 @@ export type Prediction = { label: string; dist_m: number; point_s: number | null
 export type FitnessResp = { as_of: string; available: boolean; riegel: number; vo2?: Vo2; cs?: CsFit; predictions?: Prediction[] }
 
 export type StepsResp = { as_of: string; goal: number | null; days: { date: string; steps: number | null }[]; summary: GoalProgress['steps'] | null }
+
+/** routes/all.json: [id, date, distance_m, duration_s, [startLat, startLon], flat lat/lon list] */
+export type RouteRun = [number, string, number, number, [number, number], number[]]
+export type RoutesResp = { v: number; runs: RouteRun[] }

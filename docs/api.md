@@ -133,6 +133,16 @@ Newest first, `limit` up to 100. Pass `next_before` as `before` for the next pag
 
 Unknown or non-numeric id answers 404. `detail` is `null` when the activity has no FIT file, when the `FIT` R2 binding is missing or when the object is missing. Series have at most 300 points evenly spread over `duration_s`, `speed` is m/s, `route` has at most 200 points. `ef` is metres per minute per beat over the steady part, `decoupling` is percent (positive means heart rate crept up). Both are `null` when `why` is `no_hr`, `short` (under 20 steady minutes after a 10 minute warm-up, decoupling also needs 40 minutes in total) or `variable` (pace CV of 8% or more). `detail/{id}.json` is written by the sync `fit` stage, and `tsx sync/run.ts detail` rebuilds it offline from `exports/fit/*.zip`. Only running activities get a FIT file today.
 
+## GET /api/routes
+
+The whole route set in one file, for the heatmap and the route list: the object `routes/all.json` from the `FIT` R2 bucket, streamed as is (`cache-control: private, max-age=300`). Without the binding or the object the answer is `{ "v": 1, "runs": [] }`.
+
+```json
+{ "v": 1, "runs": [ [101, "2030-05-31", 10200, 3300, [12.3401, 56.7802], [12.3401, 56.7802, 12.3405, 56.7811] ] ] }
+```
+
+Each run is `[id, date, distance_m, duration_s, [start_lat, start_lon], flat lat/lon list]`, oldest first. Points are rounded to 4 decimals (about 11 m) and at most 80 per run, so the file is about 1.3 KB per run: 334 real runs came to 440 KB (100 KB gzipped), and 1.5 MB would take roughly 1,100 runs. Only running activities with `fit_status='ok'` and at least 2 GPS points are included. `tsx sync/run.ts routes` builds `exports/routes/all.json` offline from `exports/detail/*.json` (also at the end of a local `steady`), and `upload` sends it to R2 as `routes/all.json`, always overwriting. Rebuild it after `detail`.
+
 ## GET /api/dynamics?weeks=26
 
 ```json

@@ -281,13 +281,21 @@ describe('mileage and activities', () => {
   it('activity detail: summary and laps, R2 detail only when the file is ok', async () => {
     const m = mk(); await seed(m.l)
     const asked: string[] = []
-    m.env.FIT = { get: async (k: string) => { asked.push(k); return { json: async () => ({ n: 3, hr: [1, 2, 3] }) } } }
+    m.env.FIT = { get: async (k: string) => { asked.push(k); return { json: async () => ({ n: 3, hr: [1, 2, 3] }), body: new Response('').body! } } }
     const a = await get('/api/activities/4', m)
     expect(a.activity).toMatchObject({ id: 4, sport: 'run' }); expect(a.laps.length).toBe(1); expect(a.detail).toEqual({ n: 3, hr: [1, 2, 3] }); expect(asked).toEqual(['detail/4.json'])
     expect((await get('/api/activities/3', m)).detail).toBeNull()
     delete m.env.FIT; expect((await get('/api/activities/4', m)).detail).toBeNull()
     expect((await req(m.app, m.env, '/api/activities/99', 'GET', await tok())).status).toBe(404)
     expect((await req(m.app, m.env, '/api/activities/x', 'GET', await tok())).status).toBe(404)
+  })
+  it('routes: streams routes/all.json from R2, empty list without it, needs Access', async () => {
+    const m = mk(), file = '{"v":1,"runs":[[1,"2030-05-31",5000,1500,[1,2],[1,2,1.1,2.1]]]}'
+    expect((await req(m.app, m.env, '/api/routes')).status).toBe(401)
+    expect(await get('/api/routes', m)).toEqual({ v: 1, runs: [] })
+    const asked: string[] = []
+    m.env.FIT = { get: async (k: string) => { asked.push(k); return k === 'routes/all.json' ? { json: async () => JSON.parse(file), body: new Response(file).body! } : null } }
+    expect(await get('/api/routes', m)).toEqual(JSON.parse(file)); expect(asked).toEqual(['routes/all.json'])
   })
   it('dynamics: weekly means over runs that have the metric, with n', async () => {
     const m = mk(); await seed(m.l)

@@ -58,13 +58,18 @@ const LOAD_SRC: Record<string, string> = { zones: 'From time in heart rate zones
 const ZC = ['var(--b5)', 'var(--b3)', 'var(--b2)', 'var(--b1)', 'var(--s-over)']
 const STEP: Record<string, string> = { warmup: 'Warm-up', active: 'Interval', recovery: 'Recovery', rest: 'Rest', cooldown: 'Cool-down', other: 'Other' }
 
-/** Fit lat/lon into a box, keeping the aspect ratio. */
+/** Projection of lat/lon into a w x h box, keeping the aspect ratio. `q` clips that share of the extremes off each side of the bounds, so a far-off trip does not shrink the rest. */
+export function fitter(pts: [number, number][], w = 300, h = 190, pad = 14, q = 0) {
+  const k = Math.cos((pts[0][0] * Math.PI) / 180)
+  const span = (v: number[]) => { const o = v.sort((a, b) => a - b); return [o[Math.floor(q * (o.length - 1))], o[Math.ceil((1 - q) * (o.length - 1))]] }
+  const [x0, x1] = span(pts.map((p) => p[1] * k)), [y0, y1] = span(pts.map((p) => -p[0]))
+  const s = Math.min((w - 2 * pad) / (x1 - x0 || 1e-9), (h - 2 * pad) / (y1 - y0 || 1e-9)), ox = pad + (w - 2 * pad - (x1 - x0) * s) / 2, oy = pad + (h - 2 * pad - (y1 - y0) * s) / 2
+  return (p: [number, number]) => [ox + (p[1] * k - x0) * s, oy + (-p[0] - y0) * s] as [number, number]
+}
+/** SVG path of one route fitted to its own box, with the start and end points. */
 export function routePath(pts: [number, number][], w = 300, h = 190, pad = 14) {
   if (pts.length < 2) return null
-  const k = Math.cos((pts[0][0] * Math.PI) / 180), xs = pts.map((p) => p[1] * k), ys = pts.map((p) => -p[0])
-  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)]
-  const s = Math.min((w - 2 * pad) / (x1 - x0 || 1e-9), (h - 2 * pad) / (y1 - y0 || 1e-9))
-  const P = pts.map((_, i) => [pad + (w - 2 * pad - (x1 - x0) * s) / 2 + (xs[i] - x0) * s, pad + (h - 2 * pad - (y1 - y0) * s) / 2 + (ys[i] - y0) * s])
+  const P = pts.map(fitter(pts, w, h, pad))
   return { d: 'M' + P.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join('L'), a: P[0], b: P.at(-1)! }
 }
 

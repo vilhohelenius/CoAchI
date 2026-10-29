@@ -198,6 +198,12 @@ export function metricRoutes(app: App, now: () => number) {
     } catch { return c.json({ as_of: asOf(), available: false, riegel: k }) }
   })
 
+  // routes/all.json is built by the sync `routes` stage. Streamed as is: parsing ~1 MB of JSON could exceed the free plan's CPU limit.
+  app.get('/api/routes', async (c) => {
+    const o = await c.env.FIT?.get('routes/all.json').catch(() => null)
+    return o ? new Response(o.body, { headers: { 'content-type': 'application/json', 'cache-control': 'private, max-age=300' } }) : c.json({ v: 1, runs: [] })
+  })
+
   // ---- activities ----
   app.get('/api/activities', async (c) => {
     const limit = int(c.req.query('limit'), 30, 100), before = c.req.query('before'), sp = c.req.query('sport')

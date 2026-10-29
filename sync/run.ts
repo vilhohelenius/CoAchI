@@ -1,4 +1,4 @@
-// Usage: tsx sync/run.ts steady|backfill|fit|detail|recompute|records|report|upload [--target remote] [--full]
+// Usage: tsx sync/run.ts steady|backfill|fit|detail|routes|recompute|records|report|upload [--target remote] [--full]
 // Env: GARMIN_API_KEY (or .dev.vars locally). Remote adds CF_ACCOUNT_ID, D1_DATABASE_ID, CF_API_TOKEN, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET.
 import { mkdirSync } from 'node:fs'
 import { Garmin, localToday } from './garmin.js'
@@ -8,6 +8,7 @@ import { R2 } from './r2.js'
 import { uploadDb, uploadFiles } from './upload.js'
 import { recompute } from './recompute.js'
 import { recordsStage } from './records.js'
+import { routesStage } from './routes.js'
 import { Ctx, backfill, detailStage, fitStage, steadyActivities, steadyWellness, zones } from './stages.js'
 
 const args = process.argv.slice(2)
@@ -61,6 +62,11 @@ if (mode === 'records') {
   process.exit(0)
 }
 
+if (mode === 'routes') {
+  await routesStage(local, outDir) // offline: exports/routes/all.json from exports/detail, then `upload` sends it
+  process.exit(0)
+}
+
 if (mode === 'detail') {
   await detailStage({ outDir, db: local } as unknown as Ctx) // offline: re-derives detail/*.json from exports/fit and the local dynamics columns
   process.exit(0)
@@ -78,7 +84,7 @@ const c: Ctx = { g, db, today: localToday(), outDir, deadline: Date.now() + budg
 
 try {
   await setState(db, 'run_started_at', String(Date.now()))
-  if (mode === 'steady') { await steadyActivities(c); await steadyWellness(c, Number(process.env.DAYS ?? 3)); await zones(c); await fitStage(c); await recompute(db, c.today, args.includes('--full')); await recordsStage(db, c.today, outDir) }
+  if (mode === 'steady') { await steadyActivities(c); await steadyWellness(c, Number(process.env.DAYS ?? 3)); await zones(c); await fitStage(c); await recompute(db, c.today, args.includes('--full')); await recordsStage(db, c.today, outDir); if (!remote) await routesStage(db, outDir) }
   else if (mode === 'backfill') { const r = await backfill(c); log('backfill', { status: r }); if (r === 'done') { await fitStage(c); await recompute(db, c.today, true); await recordsStage(db, c.today, outDir) } }
   else if (mode === 'fit') await fitStage(c)
   else throw new Error('mode')
