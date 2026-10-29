@@ -311,6 +311,8 @@ describe('mileage and activities', () => {
     const a = await get('/api/activities/4', m)
     expect(a.activity).toMatchObject({ avg_gct_ms: 240, avg_vert_ratio: null }); expect(a.laps[0]).toHaveProperty('avg_gct_ms')
     expect((await get('/api/dynamics', makeEmpty())).weeks.length).toBe(26)
+    const c = await get('/api/correlations', makeEmpty())
+    expect(c.pairs.length).toBe(5); expect(c.pairs.every((p: any) => p.status === 'not_enough_data')).toBe(true)
   })
   it('require Access', async () => {
     const m = mk()

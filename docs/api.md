@@ -65,6 +65,18 @@ Each key under a day can be missing when its inputs were missing that day. Sleep
 
 `minutes` are per Garmin HR zone 1 to 5, using each sport's own zone floors. `easy` is zones 1-2, `mid` zone 3, `hard` zones 4-5.
 
+## GET /api/correlations
+
+The `get_correlations` tool output (src/metrics/correlations.ts), last 180 days.
+
+```json
+{ "as_of": "...", "available": true, "window": { "from": "...", "to": "..." }, "min_n": 30, "tested": 5, "caveat": "...", "n": 120, "confidence": "ok",
+  "pairs": [ { "x": "sleep_total_s", "y": "hrv", "lag": 0, "label": "...", "n": 120, "n_eff": 80.2, "r": 0.42, "ci": [0.25, 0.56], "status": "moderate" },
+             { "x": "load", "y": "rhr", "lag": 1, "label": "...", "n": 12, "status": "not_enough_data", "need": 30 } ] }
+```
+
+`status` is `not_enough_data`, `no_clear_link`, `weak`, `moderate` or `strong_double_check`. `r`, `ci` and `n_eff` exist only when n is at least `min_n`.
+
 ## GET /api/goals
 
 ```json

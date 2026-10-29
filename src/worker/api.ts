@@ -4,6 +4,7 @@ import type { DB, Env } from './index.js'
 import { addDays, diffDays, weekStart } from '../metrics/dates.js'
 import { sportOf } from '../metrics/load.js'
 import { composition } from '../metrics/sleep.js'
+import { callTool } from '../tools.js'
 import { LIST_COLS, activityOf, SPORT_SQL, byKey, int, km1, pj, q, sportWhere, today, goalsView, steps, mileage, records, fitnessEstimates, shoes, type M } from '../queries.js'
 
 type App = Hono<{ Bindings: Env }>
@@ -60,6 +61,9 @@ export function metricRoutes(app: App, now: () => number) {
     const outW = Array.from({ length: weeks }, (_, i) => { const w = addDays(first, 7 * i); return { week_start: w, minutes: Object.fromEntries(Object.entries(wk[w] ?? {}).map(([s, z]) => [s, z.map((x) => x / 60)])) } })
     return c.json({ as_of: asOf(), weeks: outW, share_28d: { all: share(all), by_sport: Object.fromEntries(Object.entries(w28).map(([s, z]) => [s, share(z)])), easy_target: [0.75, 0.85] } })
   })
+
+  // The vetted correlation report, same output as the get_correlations tool.
+  app.get('/api/correlations', async (c) => c.json(await callTool(c.env.DB, 'get_correlations', {}, now())))
 
   // Weekly mean of each per-run average, runs that have the metric only, with how many runs (n) fed it. One GROUP BY.
   const DYN: [string, string][] = [['stride_m', 'avg_stride_m'], ['vert_osc_mm', 'avg_vert_osc_mm'], ['vert_ratio', 'avg_vert_ratio'], ['gct_ms', 'avg_gct_ms'], ['gct_balance', 'avg_gct_balance'], ['cadence', 'avg_cadence'], ['power', 'avg_power']]
