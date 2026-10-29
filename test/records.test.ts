@@ -23,8 +23,12 @@ describe('best efforts', () => {
     expect(bestTime(s.t, s.dist, 1000)).toBeCloseTo(333.3333, 3) // the jump does not shorten any window
   })
   it('counts a timer pause as no time', () => {
-    const s = run(800, () => 4), t = s.t.map((x) => (x! >= 400 ? x! + 120 : x)) // 2 minute gap at 400 s, almost no distance
+    const s = run(800, () => 4), t = s.t.map((x) => (x! >= 400 ? x! + 20 : x)) // 20 s stop at 400 s, almost no distance
     expect(bestTime(t, s.dist, 1700)).toBeCloseTo(425, 6)
+  })
+  it('keeps a long stop (recovery between reps) in the time', () => {
+    const s = run(800, () => 4), t = s.t.map((x) => (x! >= 400 ? x! + 120 : x))
+    expect(bestTime(t, s.dist, 1700)).toBeCloseTo(545.7, 1)
   })
   it('does not bridge a lost signal', () => {
     const s = run(800, () => 4), t = s.t.map((x) => (x! >= 400 ? x! + 120 : x))
