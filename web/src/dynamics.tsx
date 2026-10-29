@@ -40,7 +40,7 @@ export function DynamicsCard({ a, det }: { a: A; det: ActDetail | null }) {
     <div class="glance">{tiles.map((t) => <Tile l={t.t} v={num(AVG[t.k](a), t.d)} u={t.u.replace(' % left', ' %')} n={t.k === 'gct_balance' ? 'Left side share' : 'Average'} />)}</div>
     {m && n > 1 && <>
       <div class="tools"><div class="seg w" role="group" aria-label="Running dynamics series">{tabs.map((t) => <button type="button" aria-pressed={t.k === m.k} onClick={() => setSel(t.k)}>{t.s}</button>)}</div></div>
-      <LineChart dates={dates} xf={(x) => x} h={170} yfmt={(x) => num(x, m.d)} unit={m.u} label={`${m.t} over the activity`} series={[{ name: m.t, v, c: m.c, w: 1.8 }]}
+      <LineChart dates={dates} xf={(x) => x} h={190} yfmt={(x) => num(x, m.d)} unit={m.u} label={`${m.t} over the activity`} series={[{ name: m.t, v, c: m.c, w: 2 }, ...(avg != null ? [{ name: 'Run average', v: v.map(() => avg), c: 'var(--mute)', dash: '4 5', w: 1.6 }] : [])]}
         summary={`${m.t}: average ${num(avg, m.d)}${m.u} over ${clock(det!.duration_s)}.`} tip={(i) => [dates[i], `${m.t} ${v[i] == null ? DASH : num(v[i], m.d) + m.u}`]} /></>}
     <p class="cap2">Ground contact balance is the share of ground contact time on the left foot, 50 means even. Vertical ratio is bounce as a share of stride length.</p>
   </section>
@@ -50,12 +50,12 @@ export function DynamicsCard({ a, det }: { a: A; det: ActDetail | null }) {
 export function DynamicsView({ d, sel, setSel }: { d: DynResp; sel: Metric['k']; setSel: (k: Metric['k']) => void }) {
   const avail = METRICS.filter((m) => d.weeks.some((w) => w[m.k]))
   if (!avail.length) return <section class="card"><p class="k">Nothing here yet</p><p class="t0">No running dynamics have synced. They need a watch that records them, and the activity files must have been read.</p><a class="btn" href="#/settings">Open Settings</a></section>
-  const m = avail.find((x) => x.k === sel) ?? avail[0], dates = d.weeks.map((w) => w.week_start), v = d.weeks.map((w) => w[m.k]?.avg ?? null), runs = d.weeks.reduce((s, w) => s + (w[m.k]?.n ?? 0), 0)
+  const m = avail.find((x) => x.k === sel) ?? avail[0], dates = d.weeks.map((w) => w.week_start), v = d.weeks.map((w) => w[m.k]?.avg ?? null), runs = d.weeks.reduce((s, w) => s + (w[m.k]?.n ?? 0), 0), got = v.filter((x): x is number => x != null), mean = got.length ? got.reduce((a, x) => a + x, 0) / got.length : null
   return <>
     <p class="sub">Weekly averages across your runs. Only runs that recorded the measure count, so some weeks have fewer readings.</p>
     <div class="tools"><div class="seg w" role="group" aria-label="Measure">{avail.map((x) => <button type="button" aria-pressed={x.k === m.k} onClick={() => setSel(x.k)}>{x.s}</button>)}</div></div>
     <section class="card wide"><h3 class="ch">{m.t}, weekly average over {d.weeks.length} weeks</h3>
-      <LineChart dates={dates} h={230} unit={m.u} yfmt={(x) => num(x, m.d)} label={`${m.t} per week`} series={[{ name: m.t, v, c: m.c }]}
+      <LineChart dates={dates} h={260} unit={m.u} yfmt={(x) => num(x, m.d)} label={`${m.t} per week`} dots legend series={[{ name: m.t, v, c: m.c, w: 2.8 }, ...(mean != null ? [{ name: 'Average of weeks', v: v.map(() => mean), c: 'var(--mute)', dash: '4 5', w: 1.6 }] : [])]}
         summary={summarize(m.t, dates, v, (x) => num(x, m.d), m.u)}
         tip={(i) => [`Week of ${day(dates[i], { day: 'numeric', month: 'short' })}`, v[i] == null ? 'No runs with this measure' : `${m.t} ${num(v[i], m.d)}${m.u}`, ...(d.weeks[i][m.k] ? [`${d.weeks[i][m.k]!.n} ${d.weeks[i][m.k]!.n === 1 ? 'run' : 'runs'}`] : [])]} />
       <p class="cap2">Based on {runs} {runs === 1 ? 'run' : 'runs'}. Shoes, pace and terrain all move these numbers, so look for slow shifts and not single weeks.</p>

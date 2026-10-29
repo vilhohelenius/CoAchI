@@ -26,6 +26,8 @@ import steps from '../fixtures/steps.json'
 import goals from '../fixtures/goals.json'
 import { HeatmapView } from '../src/heatmap'
 import { ShoesView } from '../src/shoes'
+import { CorrView } from '../src/correlations'
+import corr from '../fixtures/correlations.json'
 import shoes from '../fixtures/shoes.json'
 import routes from '../fixtures/routes.json'
 
@@ -35,13 +37,19 @@ const noop = () => {}
 
 describe('page renders', () => {
   it('Load, normal and sparse', () => {
-    const html = render(h(LoadView, { d: load as never, range: '90', setRange: noop, daily: null, setDaily: noop }))
-    expect(html).toContain('How the label is chosen'); expect(html).toContain('Matches today')
-    for (const s of ['Productive', 'Fitness and fatigue, 90 days', 'Running', 'Cycling', 'Fewer than 5 sessions', 'Next 21 days', 'Fitness on day 21']) expect(html).toContain(s)
+    const html = render(h(LoadView, { d: load as never, range: '90', setRange: noop }))
+    for (const s of ['Fitness and fatigue, 90 days', 'Load ratio, safe range', 'Running', 'Cycling', 'Fewer than 5 sessions', 'href="#/insights/forecast"']) expect(html).toContain(s)
+    for (const s of ['How the label is chosen', 'Fitness on day 21']) expect(html).not.toContain(s)
     clean(html)
-    const bare = render(h(LoadView, { d: { as_of: 'x', days: [{ date: '2030-06-01', load: null, ctl: null, atl: null, tsb: null, tsb_end: null, acwr: null, ramp7: null, status: null, warming_up: 1 }] }, range: 'all', setRange: noop, daily: 40, setDaily: noop }))
-    expect(bare).toContain('The projection is not available yet'); clean(bare)
-    expect(render(h(LoadView, { d: { as_of: 'x', days: [] }, range: '90', setRange: noop, daily: null, setDaily: noop }))).toContain('Nothing here yet')
+    const bare = render(h(LoadView, { d: { as_of: 'x', days: [{ date: '2030-06-01', load: null, ctl: null, atl: null, tsb: null, tsb_end: null, acwr: null, ramp7: null, status: null, warming_up: 1 }] }, range: 'all', setRange: noop }))
+    clean(bare)
+    expect(render(h(LoadView, { d: { as_of: 'x', days: [] }, range: '90', setRange: noop }))).toContain('Nothing here yet')
+  })
+  it('Correlations: r, interval and honest wording for too few days', () => {
+    const html = render(h(CorrView, { d: corr as never }))
+    for (const s of ['Moderate link', 'r = +0.42', '95% interval +0.25 to +0.56', 'No clear link', 'n = 12, too few', '12 paired days so far and 30 are needed', 'does not show that one causes']) expect(html).toContain(s)
+    clean(html)
+    expect(render(h(CorrView, { d: { as_of: 'x', pairs: [] } }))).toContain('Nothing here yet')
   })
   it('Recovery, normal and sparse', () => {
     const html = render(h(RecoveryView, { d: recovery as never }))

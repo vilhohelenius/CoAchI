@@ -83,12 +83,13 @@ function Frame(p: Frame & { onSel?: (i: number) => void; bars?: boolean; n: numb
     return n < 2 ? 0 : Math.max(0, Math.min(n - 1, p.bars ? Math.floor(f) : Math.round(f)))
   }
   const at = (e: PointerEvent) => setHov(idx(e))
-  const xt = n < 2 ? [0] : [0, Math.round((n - 1) / 2), n - 1], fy = p.yfmt ?? ((v: number) => num(v))
+  const k = w >= 520 && n > 6 ? 4 : 2, xt = n < 2 ? [0] : [...new Set(Array.from({ length: k + 1 }, (_, i) => Math.round((i * (n - 1)) / k)))], fy = p.yfmt ?? ((v: number) => num(v))
   const hx = hov == null ? 0 : X(hov)
   return <div class="cvw" ref={ref}>
     <svg class="cv" viewBox={`0 0 ${w} ${h}`} role="img" aria-label={p.label} onClick={p.onSel && ((e) => p.onSel!(idx(e)))} onPointerMove={at} onPointerDown={at} onPointerLeave={(e) => e.pointerType === 'mouse' && setHov(null)}>
       {p.yt.map((v) => <><line class="gl" x1={ML} x2={w - MR} y1={Y(v)} y2={Y(v)} /><text x={w - MR + 6} y={Y(v) + 4}>{fy(v)}</text></>)}
       {p.n > 0 && xt.map((i, k) => <text x={X(i)} y={h - 5} text-anchor={k === 0 && xt.length > 1 ? 'start' : k === xt.length - 1 && xt.length > 1 ? 'end' : 'middle'}>{(p.xf ?? ((d) => day(d, { day: 'numeric', month: 'short' })))(p.dates[i])}</text>)}
+      {p.unit && <text class="au" x={w - MR + 6} y={MT - 3}>{p.unit.trim()}</text>}
       {p.draw(X, Y, w)}
       {hov != null && <line x1={hx} x2={hx} y1={MT} y2={h - MB} stroke="var(--mute)" stroke-dasharray="3 4" />}
     </svg>
@@ -98,20 +99,21 @@ function Frame(p: Frame & { onSel?: (i: number) => void; bars?: boolean; n: numb
   </div>
 }
 
-export function LineChart(p: Frame & { series: Series[]; band?: { lo: Num[]; hi: Num[] }; include?: number[]; pad?: number; vline?: number }) {
+export function LineChart(p: Frame & { series: Series[]; band?: { lo: Num[]; hi: Num[] }; include?: number[]; pad?: number; vline?: number; dots?: boolean; legend?: boolean }) {
   const n = p.dates.length
   const ex = extent(...p.series.map((s) => s.v), p.band?.lo ?? [], p.band?.hi ?? [], p.include ?? [])
   if (!ex) return <p class="empty">{p.summary}</p>
   const pad = (ex[1] - ex[0]) * 0.08 || 1, y0 = ex[0] - pad, y1 = ex[1] + pad
   const lines = p.tip ?? ((i: number) => [day(p.dates[i], { weekday: 'short', day: 'numeric', month: 'short' }), ...p.series.map((s) => `${s.name} ${fin(s.v[i]) ? (p.yfmt ?? ((v: number) => num(v, 1)))(s.v[i] as number) + (p.unit ?? '') : DASH}`)])
   return <Frame {...p} n={n} y0={y0} y1={y1} yt={ticks(y0, y1, 4)} lines={lines}
-    legend={p.series.length > 1 && <div class="legend">{p.series.map((s) => <span><i style={`background:${s.c}`} />{s.name}</span>)}</div>}
+    legend={(p.legend ?? p.series.length > 1) && <div class="legend ln">{p.series.map((s) => <span><i style={`background:${s.c}`} />{s.name}</span>)}</div>}
     draw={(X, Y) => {
       const xs = p.dates.map((_, i) => X(i))
       return <>
         {p.band && <path d={bandPath(xs, p.band.lo.map((v) => (fin(v) ? Y(v) : null)), p.band.hi.map((v) => (fin(v) ? Y(v) : null)))} fill="var(--ok)" opacity=".18" />}
         {p.vline != null && <line x1={X(p.vline)} x2={X(p.vline)} y1={MT} y2={(p.h ?? 200) - MB} stroke="var(--line)" />}
-        {p.series.map((s) => <path d={linePath(xs, s.v.map((v) => (fin(v) ? Y(v) : null)))} fill="none" stroke={s.c} stroke-width={s.w ?? 2.2} stroke-linejoin="round" stroke-linecap="round" stroke-dasharray={s.dash} />)}
+        {p.series.map((s) => <path d={linePath(xs, s.v.map((v) => (fin(v) ? Y(v) : null)))} fill="none" stroke={s.c} stroke-width={s.w ?? 2.4} stroke-linejoin="round" stroke-linecap="round" stroke-dasharray={s.dash} />)}
+        {p.dots && p.series.map((s) => s.v.map((v, i) => fin(v) && <circle cx={X(i)} cy={Y(v)} r="3" fill={s.c} />))}
       </>
     }} />
 }

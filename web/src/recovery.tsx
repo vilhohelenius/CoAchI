@@ -33,12 +33,12 @@ export function RecoveryView({ d }: { d: RecoveryResp }) {
       <h3 class="ch">HRV against your normal</h3>
       <LineChart dates={dates} h={220} unit=" ms" label="Overnight HRV with your normal range" band={{ lo: d.days.map((x) => (ok(x) ? x.hrv!.low : null)), hi: d.days.map((x) => (ok(x) ? x.hrv!.high : null)) }}
         summary={summarize('Overnight HRV', dates, d.days.map((x) => x.hrv?.last), (n) => num(n), ' ms') + (h?.range_ok ? ` Your normal range is ${num(h.low)} to ${num(h.high)} ms.` : ' Your normal range is still being built.')}
-        series={[{ name: 'Last night', v: d.days.map((x) => x.hrv?.last), c: 'var(--mute)', w: 1.4 }, { name: '7-day average', v: d.days.map((x) => x.hrv?.h7), c: 'var(--link)', w: 2.8 }]} />
+        series={[{ name: '7-day average', v: d.days.map((x) => x.hrv?.h7), c: 'var(--link)', w: 2.8 }]} />
       <span class="lab">The green band is your 60-day average plus or minus one standard deviation{h ? `, from ${h.n_base} nights` : ''}. It appears once there are enough nights.</span>
     </section>
 
     <h2 class="sh">HRV and resting heart rate</h2>
-    <div class="g2">
+    <div class="g2 eq">
       <section class="card"><p class="k">Last 7 days{rc?.balance?.balanced != null && <Pill tone={rc.balance.balanced ? 'ok' : 'warn'}>{rc.balance.balanced ? 'In balance' : 'Out of balance'}</Pill>}</p>
         <div class="kv">
           <div><span class="num">{num(h?.h7)}<small> ms</small></span><span class="lab">HRV average{h?.status ? `, ${hl[0].toLowerCase()}` : ''}, {h?.n7 ?? 0} nights</span></div>

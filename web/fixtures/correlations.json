@@ -1,0 +1,7 @@
+{ "as_of": "2030-06-01T07:00:00Z", "available": true, "window": { "from": "2029-12-04", "to": "2030-06-01" }, "min_n": 30, "tested": 5, "n": 120, "confidence": "ok",
+  "caveat": "Association, not proof of cause. Fixed pairs, no detrending; a CI that includes 0 means no clear link.",
+  "pairs": [
+    { "x": "sleep_total_s", "y": "hrv", "lag": 0, "label": "Sleep duration vs the same night's HRV", "n": 120, "n_eff": 80.2, "r": 0.42, "ci": [0.25, 0.56], "status": "moderate" },
+    { "x": "sleep_total_s", "y": "rhr", "lag": 0, "label": "Sleep duration vs resting HR the same day", "n": 118, "n_eff": 70, "r": -0.05, "ci": [-0.28, 0.19], "status": "no_clear_link" },
+    { "x": "load", "y": "hrv", "lag": 1, "label": "Training load vs next day's HRV", "n": 12, "status": "not_enough_data", "need": 30 }
+  ] }

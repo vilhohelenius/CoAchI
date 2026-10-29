@@ -9,7 +9,7 @@ const fx = (n: string) => readFileSync(`web/fixtures/${n}.json`, 'utf8')
 const fixtureFor = (u: URL) => {
   const by = u.searchParams.get('by'), p = u.pathname
   return p === '/api/mileage' ? `mileage-${by === 'month' || by === 'year' ? by : 'week'}` : p === '/api/mileage/compare' ? 'mileage-compare' : p === '/api/activities' ? 'activities' : p === '/api/steps' ? 'steps' : p === '/api/records' ? 'records' : p === '/api/routes' ? 'routes' : p === '/api/shoes' ? 'shoes' : p === '/api/fitness-estimates' ? 'fitness-estimates'
-    : /^\/api\/activities\/\d+$/.test(p) ? (p.endsWith('/97') ? 'activity-strength' : 'activity-run') : /^\/api\/(today|goals|load|recovery|intensity|dynamics)$/.exec(p)?.[1]
+    : /^\/api\/activities\/\d+$/.test(p) ? (p.endsWith('/97') ? 'activity-strength' : 'activity-run') : /^\/api\/(today|goals|load|recovery|intensity|dynamics|correlations)$/.exec(p)?.[1]
 }
 let fail: (u: URL) => boolean, root: HTMLElement, coachOn = false, chats: string[] = []
 const settle = () => vi.waitFor(() => expect(root.querySelector('[aria-busy]')).toBeNull())
@@ -42,7 +42,7 @@ afterEach(() => { render(null, root); root.remove(); vi.unstubAllGlobals() })
 describe('frontend end to end', () => {
   it('every route renders data and the nav marks the current page', async () => {
     await settle()
-    for (const r of ['today', 'load', 'recovery', 'intensity', 'dynamics', 'insights', ...['status', 'sleep', 'recovery', 'hrv', 'rhr', 'battery', 'load', 'intensity', 'forecast', 'dynamics'].map((k) => 'insights/' + k), 'goals', 'mileage', 'steps', 'records', 'heatmap', 'shoes', 'activities', 'activities/100', 'activities/97', 'settings']) {
+    for (const r of ['today', 'load', 'recovery', 'intensity', 'dynamics', 'insights', ...['status', 'sleep', 'recovery', 'hrv', 'rhr', 'battery', 'load', 'intensity', 'forecast', 'dynamics', 'correlations'].map((k) => 'insights/' + k), 'goals', 'mileage', 'steps', 'records', 'heatmap', 'shoes', 'activities', 'activities/100', 'activities/97', 'settings']) {
       await go(`#/${r}`)
       expect(root.querySelector('h1')?.textContent, r).toBeTruthy()
       expect(root.querySelector('.err'), r).toBeNull()
@@ -106,7 +106,7 @@ describe('frontend end to end', () => {
   })
   it('insights hub links every sub page, Explain this opens its text, and the back link returns', async () => {
     await go('#/insights')
-    await vi.waitFor(() => expect(root.querySelectorAll('a.ixc').length).toBe(10))
+    await vi.waitFor(() => expect(root.querySelectorAll('a.ixc').length).toBe(11))
     expect([...root.querySelectorAll('a.ixc')].map((a) => a.getAttribute('href'))).toContain('#/insights/hrv')
     await go('#/insights/hrv')
     await vi.waitFor(() => expect(root.querySelector('.xp')).toBeTruthy())
