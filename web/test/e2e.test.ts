@@ -76,7 +76,9 @@ describe('frontend end to end', () => {
     const btn = [...root.querySelectorAll('.seg button')].find((b) => b.textContent === '2029') as HTMLButtonElement
     btn.click()
     await vi.waitFor(() => expect(n()).toBe(3))
-    expect(root.querySelector('.seg [aria-pressed=true]')?.textContent).toBe('2029')
+    expect(root.querySelector('[aria-label=Year] [aria-pressed=true]')?.textContent).toBe('2029')
+    ;([...root.querySelectorAll('.seg button')].find((b) => b.textContent === 'Rides') as HTMLButtonElement).click() // the fixture has no rides
+    await vi.waitFor(() => expect(n()).toBe(0))
   })
   it('shoes page lists cards and the retired one, the picker on a run saves with PATCH', async () => {
     await go('#/shoes')

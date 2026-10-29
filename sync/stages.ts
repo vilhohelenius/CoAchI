@@ -122,13 +122,13 @@ export async function detailStage(c: Ctx) {
   log('detail', { rebuilt: n })
 }
 
-// ---- FIT: runs only. Zip and streams go to local exports/ for now (R2 keys are the same relative paths). ----
+// ---- FIT: every activity type, Garmin answers 404/204 when there is no file (the row then becomes 'error'). Zip and streams go to local exports/ for now (R2 keys are the same relative paths). ----
 export async function fitStage(c: Ctx, max = Infinity) {
-  const todo = await c.db.all<{ id: number }>(
-    `SELECT id FROM activities WHERE fit_status='none' AND type LIKE '%running%' ORDER BY start_gmt DESC LIMIT ?`, [Number.isFinite(max) ? max : 1e9])
+  const todo = await c.db.all<{ id: number; type: string | null }>(
+    `SELECT id, type FROM activities WHERE fit_status='none' ORDER BY start_gmt DESC LIMIT ?`, [Number.isFinite(max) ? max : 1e9])
   let ok = 0, failed = 0
   const put = c.put ?? (async (k: string, b: Uint8Array) => { mkdirSync(`${c.outDir}/${k.split('/')[0]}`, { recursive: true }); writeFileSync(`${c.outDir}/${k}`, b) })
-  for (const { id } of todo) {
+  for (const { id, type } of todo) {
     if (c.deadline && Date.now() > c.deadline) break
     try {
       const zip: Uint8Array = await c.g.get('fit', `/download-service/files/activity/${id}`, {}, true)
@@ -138,7 +138,7 @@ export async function fitStage(c: Ctx, max = Infinity) {
       await put(`streams/${id}.json.gz`, gzipSync(js(p.streams)))
       await put(`detail/${id}.json`, Buffer.from(js(buildDetail(p.streams)))) // small, downsampled, read by the Worker
       await c.db.batch([
-        ...parsedStmts(id, p), ...effortStmts(id, p.streams),
+        ...parsedStmts(id, p), ...(/running/.test(type ?? '') ? effortStmts(id, p.streams) : []), // best efforts are for runs only
         [`UPDATE activities SET fit_status='ok', fit_r2_key=?, rpe=COALESCE(?,rpe), feel=COALESCE(?,feel) WHERE id=?`, [`fit/${id}.zip`, p.rpe, p.feel, id]],
       ])
       ok++

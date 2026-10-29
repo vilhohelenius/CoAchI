@@ -38,7 +38,7 @@ describe('stages are idempotent', () => {
     db.db.exec(`UPDATE activities SET fit_status='none'`) // force the FIT stage to run again
     await once(); expect(await snap(db)).toBe(a)
     const n = (t: string) => db.db.prepare(`SELECT COUNT(*) n FROM ${t}`).get() as { n: number }
-    expect(n('activities').n).toBe(2); expect(n('activity_steps').n).toBe(13); expect(n('hr_zones').n).toBe(1); expect(n('goals').n).toBe(3)
+    expect(n('activities').n).toBe(2); expect(n('activity_steps').n).toBe(26) // both activities get a FIT now, 13 steps each; expect(n('hr_zones').n).toBe(1); expect(n('goals').n).toBe(3)
     expect(await db.all(`SELECT fit_status s FROM activities WHERE id=1`)).toEqual([{ s: 'ok' }])
   })
 })

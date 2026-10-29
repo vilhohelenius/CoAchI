@@ -7,7 +7,7 @@ import { routesStage } from '../sync/routes.js'
 import { groupRoutes, type RouteRun } from '../src/metrics/routes.js'
 
 describe('routes stage', () => {
-  it('writes one compact file: rounded, downsampled, start point, only runs with a route', async () => {
+  it('writes one compact file: rounded, downsampled, start point, every sport with a route, tagged', async () => {
     setSink(() => {})
     const db = new LocalStore(':memory:'); db.migrate('migrations')
     const dir = mkdtempSync(`${tmpdir()}/coachi-`); mkdirSync(`${dir}/detail`)
@@ -15,9 +15,9 @@ describe('routes stage', () => {
     await ins(1, 'running', 'ok'); await ins(2, 'running', 'ok'); await ins(3, 'cycling', 'ok'); await ins(4, 'running', 'none'); await ins(5, 'running', 'ok')
     const line = Array.from({ length: 200 }, (_, i) => [12.3456789 + i * 1e-4, 56.7891234 + i * 1e-4])
     writeFileSync(`${dir}/detail/1.json`, JSON.stringify({ route: line })); writeFileSync(`${dir}/detail/2.json`, JSON.stringify({ route: [[1, 1]] })); writeFileSync(`${dir}/detail/3.json`, JSON.stringify({ route: line }))
-    await routesStage(db, dir) // 5 has no detail file, 2 has a single point, 3 is not a run, 4 has no fit
+    await routesStage(db, dir) // 5 has no detail file, 2 has a single point, 4 has no fit; 3 is a ride
     const f = JSON.parse(readFileSync(`${dir}/routes/all.json`, 'utf8'))
-    expect(f.v).toBe(1); expect(f.runs.length).toBe(1)
+    expect(f.v).toBe(1); expect(f.runs.map((r: unknown[]) => [r[0], r[6]])).toEqual([[1, 'run'], [3, 'bike']])
     const [id, date, dist, dur, start, pts] = f.runs[0]
     expect([id, date, dist, dur, start]).toEqual([1, '2030-05-01', 5000, 1501, [12.3457, 56.7891]])
     expect(pts.length).toBe(160); expect(pts.slice(0, 2)).toEqual([12.3457, 56.7891]); expect(pts.at(-2)).toBe(12.3656)

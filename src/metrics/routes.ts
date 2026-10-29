@@ -1,5 +1,5 @@
 // Route grouping, see docs/metrics.md "Routes". Pure, runs in the browser on routes/all.json.
-export type RouteRun = [id: number, date: string, distance_m: number, duration_s: number, start: [number, number], pts: number[]]
+export type RouteRun = [id: number, date: string, distance_m: number, duration_s: number, start: [number, number], pts: number[], sport?: 'run' | 'bike' | 'other']
 export type RouteGroup = { n: number; med_m: number; best: RouteRun; last: RouteRun }
 
 export const START_M = 150 // same route: start points within 150 m ...
