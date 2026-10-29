@@ -1,4 +1,4 @@
-// Usage: tsx sync/run.ts steady|backfill|fit|recompute|report|upload [--target remote] [--full]
+// Usage: tsx sync/run.ts steady|backfill|fit|detail|recompute|report|upload [--target remote] [--full]
 // Env: GARMIN_API_KEY (or .dev.vars locally). Remote adds CF_ACCOUNT_ID, D1_DATABASE_ID, CF_API_TOKEN, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET.
 import { mkdirSync } from 'node:fs'
 import { Garmin, localToday } from './garmin.js'
@@ -7,7 +7,7 @@ import { D1Store, LocalStore, Store, setState } from './store.js'
 import { R2 } from './r2.js'
 import { uploadDb, uploadFiles } from './upload.js'
 import { recompute } from './recompute.js'
-import { Ctx, backfill, fitStage, steadyActivities, steadyWellness, zones } from './stages.js'
+import { Ctx, backfill, detailStage, fitStage, steadyActivities, steadyWellness, zones } from './stages.js'
 
 const args = process.argv.slice(2)
 const mode = args[0] ?? 'steady'
@@ -44,6 +44,11 @@ if (mode === 'report') {
 
 if (mode === 'recompute') {
   await recompute(db, localToday(), args.includes('--full'))
+  process.exit(0)
+}
+
+if (mode === 'detail') {
+  await detailStage({ outDir, db: local } as unknown as Ctx) // offline: re-derives detail/*.json from exports/fit and the local dynamics columns
   process.exit(0)
 }
 

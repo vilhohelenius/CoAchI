@@ -108,7 +108,7 @@ function CoachCard() {
 export function Gauge({ min, max, lo, hi, v }: { min: number; max: number; lo?: number | null; hi?: number | null; v: number }) {
   return <span class="gs" aria-hidden="true">{lo != null && hi != null && <i class="b" style={`left:${pct(lo, min, max)}%;width:${pct(hi, min, max) - pct(lo, min, max)}%`} />}<i class="m" style={`left:${pct(v, min, max)}%`} /></span>
 }
-function Tile({ l, v, u, tone, lab, g, n }: { l: string; v: string; u?: string; tone?: string; lab?: string; g?: preact.ComponentChildren; n: string }) {
+export function Tile({ l, v, u, tone, lab, g, n }: { l: string; v: string; u?: string; tone?: string; lab?: string; g?: preact.ComponentChildren; n: string }) {
   return <div class="t"><p class="k">{l}{lab && <Pill tone={tone}>{lab}</Pill>}</p><div class="v">{v}{u && <small>{u}</small>}</div>{g}<span class="n">{n}</span></div>
 }
 function Glances({ d }: { d: Today }) {

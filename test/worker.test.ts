@@ -181,6 +181,72 @@ describe('metric endpoints', () => {
   })
 })
 
+describe('mileage and activities', () => {
+  const seed = async (l: ReturnType<typeof mk>['l']) => {
+    const ins = (id: number, d: string, type: string, m: number, extra = 'ok'): [string, unknown[]] => ['INSERT INTO activities (id,start_local,type,name,distance_m,duration_s,elev_gain_m,fit_status) VALUES (?,?,?,?,?,?,?,?)', [id, `${d} 07:00:00`, type, `A${id}`, m, 3000, 10, extra]]
+    await l.batch([ins(1, '2029-12-31', 'running', 5000), ins(2, '2030-01-01', 'running', 10000), ins(3, '2030-01-02', 'cycling', 20000, 'none'), ins(4, '2030-05-27', 'running', 8000), ins(5, '2030-05-29', 'running', 4000), ins(6, '2030-05-30', 'strength_training', 0, 'none'),
+      ["INSERT INTO goals (kind,title,target_value,unit,status,created_at) VALUES ('distance','Yearly',2000,'km','active',1)"],
+      ["INSERT INTO activity_steps (activity_id,lap_idx,step_type,duration_s,distance_m) VALUES (4,0,'lap',600,2000)"]])
+  }
+  const get = async (p: string, t: { app: ReturnType<typeof mk>['app']; env: Env }) => (await req(t.app, t.env, p, 'GET', await tok())).json() as Promise<any>
+  it('bars by week, month and year, filled and filtered', async () => {
+    const m = mk(); await seed(m.l)
+    const w = await get('/api/mileage?by=week&sport=run', m)
+    expect(w.periods.length).toBe(52); expect(w.periods.at(-1)).toMatchObject({ key: '2030-05-27', km: 12, sessions: 2 })
+    const mo = await get('/api/mileage?by=month', m)
+    expect(mo.periods.length).toBe(24); expect(mo.periods.find((p: any) => p.key === '2030-01').km).toBe(30)
+    const y = await get('/api/mileage?by=year&sport=run', m)
+    expect(y.periods.map((p: any) => [p.key, p.km])).toEqual([['2029', 5], ['2030', 22]])
+    expect((await get('/api/mileage?by=year&sport=bike', m)).periods.at(-1).km).toBe(20)
+  })
+  it('compare: cumulative per year equals the sum, rolling windows, goal only for runs', async () => {
+    const m = mk(); await seed(m.l)
+    const c = await get('/api/mileage/compare?sport=run', m)
+    expect(c.years.map((y: any) => y.year)).toEqual([2029, 2030]); expect(c.goal_km).toBe(2000)
+    expect(c.years[1].total_km).toBe(22); expect(c.years[1].points.at(-1)).toEqual([149, 22]); expect(c.years[1].points[0]).toEqual([1, 10])
+    expect(c.rolling.dates.at(-1)).toBe(c.today); expect(c.rolling.km30.at(-1)).toBe(12); expect(c.rolling.km365.at(-1)).toBeNull()
+    expect((await get('/api/mileage/compare', m)).goal_km).toBeNull()
+    expect((await get('/api/mileage/compare', makeEmpty())).years).toEqual([])
+  })
+  const makeEmpty = () => mk()
+  it('activity list pages with before and filters by sport', async () => {
+    const m = mk(); await seed(m.l)
+    const p1 = await get('/api/activities?limit=2', m)
+    expect(p1.activities.map((a: any) => a.id)).toEqual([6, 5]); expect(p1.activities[0].sport).toBe('strength'); expect(p1.next_before).toBe('2030-05-29 07:00:00')
+    const p2 = await get(`/api/activities?limit=10&before=${encodeURIComponent(p1.next_before)}`, m)
+    expect(p2.activities.map((a: any) => a.id)).toEqual([4, 3, 2, 1]); expect(p2.next_before).toBeNull()
+    expect((await get('/api/activities?sport=bike', m)).activities.map((a: any) => a.id)).toEqual([3])
+  })
+  it('activity detail: summary and laps, R2 detail only when the file is ok', async () => {
+    const m = mk(); await seed(m.l)
+    const asked: string[] = []
+    m.env.FIT = { get: async (k: string) => { asked.push(k); return { json: async () => ({ n: 3, hr: [1, 2, 3] }) } } }
+    const a = await get('/api/activities/4', m)
+    expect(a.activity).toMatchObject({ id: 4, sport: 'run' }); expect(a.laps.length).toBe(1); expect(a.detail).toEqual({ n: 3, hr: [1, 2, 3] }); expect(asked).toEqual(['detail/4.json'])
+    expect((await get('/api/activities/3', m)).detail).toBeNull()
+    delete m.env.FIT; expect((await get('/api/activities/4', m)).detail).toBeNull()
+    expect((await req(m.app, m.env, '/api/activities/99', 'GET', await tok())).status).toBe(404)
+    expect((await req(m.app, m.env, '/api/activities/x', 'GET', await tok())).status).toBe(404)
+  })
+  it('dynamics: weekly means over runs that have the metric, with n', async () => {
+    const m = mk(); await seed(m.l)
+    await m.l.batch([
+      ['UPDATE activities SET avg_gct_ms=240, avg_stride_m=1.2, avg_cadence=170 WHERE id=4'], ['UPDATE activities SET avg_gct_ms=260 WHERE id=5'],
+      ['UPDATE activities SET avg_gct_ms=999 WHERE id=3'], // bike, ignored
+    ])
+    const d = await get('/api/dynamics?weeks=4', m)
+    expect(d.weeks.length).toBe(4); expect(d.weeks.at(-1)).toMatchObject({ week_start: '2030-05-27', gct_ms: { avg: 250, n: 2 }, stride_m: { avg: 1.2, n: 1 }, cadence: { avg: 170, n: 1 }, vert_osc_mm: null })
+    expect(d.weeks[0].gct_ms).toBeNull()
+    const a = await get('/api/activities/4', m)
+    expect(a.activity).toMatchObject({ avg_gct_ms: 240, avg_vert_ratio: null }); expect(a.laps[0]).toHaveProperty('avg_gct_ms')
+    expect((await get('/api/dynamics', makeEmpty())).weeks.length).toBe(26)
+  })
+  it('require Access', async () => {
+    const m = mk()
+    for (const p of ['/api/mileage', '/api/mileage/compare', '/api/activities', '/api/activities/1', '/api/dynamics']) expect((await req(m.app, m.env, p)).status).toBe(401)
+  })
+})
+
 describe('static assets', () => {
   it('checks Access on non-API paths, then falls through to assets', async () => {
     const { app, env } = mk()

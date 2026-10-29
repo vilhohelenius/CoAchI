@@ -7,10 +7,12 @@ const fixtures = () => ({
   name: 'fixtures',
   configureServer(s: { middlewares: { use(f: (req: { url?: string }, res: any, next: () => void) => void): void } }) {
     s.middlewares.use((req, res, next) => {
-      const m = /^\/api\/(today|goals|load|recovery|intensity)(\?|$)/.exec(req.url ?? '')
-      if (!m) return next()
+      const u = new URL(req.url ?? '', 'http://x'), by = u.searchParams.get('by')
+      const f = u.pathname === '/api/mileage' ? `mileage-${by === 'month' || by === 'year' ? by : 'week'}` : u.pathname === '/api/mileage/compare' ? 'mileage-compare' : u.pathname === '/api/activities' ? 'activities'
+        : /^\/api\/activities\/\d+$/.test(u.pathname) ? (u.pathname.endsWith('/97') ? 'activity-strength' : 'activity-run') : /^\/api\/(today|goals|load|recovery|intensity|dynamics)$/.exec(u.pathname)?.[1]
+      if (!f) return next()
       res.setHeader('content-type', 'application/json')
-      res.end(readFileSync(new URL(`./fixtures/${m[1]}.json`, import.meta.url)))
+      res.end(readFileSync(new URL(`./fixtures/${f}.json`, import.meta.url)))
     })
   },
 })

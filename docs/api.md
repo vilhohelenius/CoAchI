@@ -79,6 +79,59 @@ Each key under a day can be missing when its inputs were missing that day. Sleep
 
 Statuses are pace words and never pass or fail. Year and steps use `ahead`, `on_pace`, `behind`. The current week uses the same words against the part of the band that fits the days elapsed. Finished weeks use `below_band`, `in_band`, `above_band`. Yearly distance counts running activities only. `projected_km` is a straight line from the 8-week average. `streak_days` counts consecutive calendar days at or above the goal, today only counts once reached and is otherwise `today_pending`.
 
+## GET /api/mileage?by=week|month|year&sport=run|bike|ski|strength|all
+
+```json
+{ "as_of": "...", "by": "week", "sport": "run",
+  "periods": [ { "key": "2030-05-27", "km": 36.7, "hours": 3.4, "elev_m": 260, "sessions": 4 } ] }
+```
+
+One GROUP BY over `activities`, gaps filled with zeros. `key` is the Monday for weeks (last 52), `YYYY-MM` for months (last 24) and `YYYY` for years (first activity to now). Without `sport` all activities count.
+
+## GET /api/mileage/compare?sport=
+
+```json
+{ "as_of": "...", "sport": "run", "today": "2030-06-01", "goal_km": 2000,
+  "years": [ { "year": 2030, "total_km": 812.4, "points": [ [1, 10.2], [3, 18.0] ] } ],
+  "rolling": { "dates": ["2030-05-26", "2030-06-01"], "km30": [150.2, 151.0], "km365": [null, 1980.4] } }
+```
+
+`points` are `[day of year, cumulative km]` on days with activities only, so a line carries the last value forward. The last point of a year equals `total_km`, the sum of its activities. `rolling` is sampled weekly and ends today, a value is `null` until the history covers the whole window. `goal_km` is the active yearly distance goal and only appears for `sport=run`, otherwise `null`. Empty database: `years` is `[]`.
+
+## GET /api/activities?limit=30&before=&sport=
+
+```json
+{ "as_of": "...", "next_before": "2030-05-29 07:00:00",
+  "activities": [ { "id": 1, "start_local": "2030-06-01 07:00:00", "type": "running", "sport": "run", "name": "Morning run", "distance_m": 8000, "duration_s": 2700,
+                    "elev_gain_m": 40, "avg_hr": 150, "load": 61.3, "fit_status": "ok" } ] }
+```
+
+Newest first, `limit` up to 100. Pass `next_before` as `before` for the next page, it is `null` on the last page. `sport` is run, bike, ski or strength.
+
+## GET /api/activities/:id
+
+```json
+{ "as_of": "...", "activity": { "id": 1, "sport": "run", "max_hr": 163, "hr_z1_s": 300, "aero_te": 3.4, "load_source": "zones", "...": 0 },
+  "laps": [ { "lap_idx": 0, "step_type": "lap", "duration_s": 410, "distance_m": 1000, "avg_speed_mps": 3.0, "avg_hr": 138 } ],
+  "detail": { "n": 300, "duration_s": 3300, "hr": [110], "speed": [2.2], "cad": [168], "pwr": [null], "route": [[50.1, 8.6]],
+              "splits": [ { "km": 1, "s": 330, "hr": 138 } ], "ef": 1.24, "decoupling": 3.8, "why": "ok" } }
+```
+
+Unknown or non-numeric id answers 404. `detail` is `null` when the activity has no FIT file, when the `FIT` R2 binding is missing or when the object is missing. Series have at most 300 points evenly spread over `duration_s`, `speed` is m/s, `route` has at most 200 points. `ef` is metres per minute per beat over the steady part, `decoupling` is percent (positive means heart rate crept up). Both are `null` when `why` is `no_hr`, `short` (under 20 steady minutes after a 10 minute warm-up, decoupling also needs 40 minutes in total) or `variable` (pace CV of 8% or more). `detail/{id}.json` is written by the sync `fit` stage, and `tsx sync/run.ts detail` rebuilds it offline from `exports/fit/*.zip`. Only running activities get a FIT file today.
+
+## GET /api/dynamics?weeks=26
+
+```json
+{ "as_of": "...", "weeks": [ { "week_start": "2030-05-27", "stride_m": { "avg": 1.14, "n": 3 }, "vert_osc_mm": null, "vert_ratio": null, "gct_ms": { "avg": 246, "n": 3 },
+                              "gct_balance": null, "cadence": { "avg": 168, "n": 4 }, "power": null } ] }
+```
+
+One GROUP BY over running activities, `weeks` up to 260 (default 26), oldest first, every week present. Each measure is the mean of the per-run averages over runs that have it, `n` is how many runs, and `null` means none that week. Only about half of runs carry running dynamics.
+
+## Running dynamics fields
+
+`GET /api/activities/:id` adds `avg_stride_m`, `avg_vert_osc_mm`, `avg_vert_ratio`, `avg_gct_ms`, `avg_gct_balance` (all `null` without dynamics) to `activity` and to each lap row. `detail` adds the series `str` (m), `vo` (mm), `vr` (%), `gct` (ms) and `bal` (% left) at the same length as `hr`, and leaves a series out when the file has none. `cad` is steps per minute. Needs migration `0003_dynamics.sql`.
+
 ## Recompute
 
 `tsx sync/run.ts recompute [--full] [--target remote]` rebuilds the derived tables. It also runs at the end of `steady` (last 14 days written, `RECOMP_DAYS` to change) and `backfill` (full). The first run on an empty `load_daily` is always full. Older edits to raw rows need `--full`.

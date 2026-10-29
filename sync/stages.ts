@@ -1,9 +1,10 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { gzipSync } from 'node:zlib'
 import { Garmin, GarminError, WINDOW, addDays, windows } from './garmin.js'
 import { log } from './log.js'
-import { Store, getState, setState, upsert } from './store.js'
-import { parseFit, unzipFit } from './fit.js'
+import { Store, Stmt, getState, setState, upsert } from './store.js'
+import { parseFit, unzipFit, type Parsed } from './fit.js'
+import { buildDetail } from '../src/metrics/activity.js'
 
 export type Ctx = { g: Garmin; db: Store; today: string; outDir: string; deadline?: number; put?: (key: string, body: Uint8Array) => Promise<void> }
 const rows = (r: any): any[] => (Array.isArray(r) ? r : []) // 204 / null / {nulls} all mean "no data"
@@ -94,6 +95,26 @@ export async function zones(c: Ctx) {
   log('zones', { added })
 }
 
+/** Laps and running dynamics averages of one parsed FIT. Shared by the fit stage and the offline rebuild. */
+const parsedStmts = (id: number, p: Parsed): Stmt[] => [
+  ['DELETE FROM activity_steps WHERE activity_id=?', [id]],
+  ...p.steps.map((s): Stmt => ['INSERT INTO activity_steps (activity_id,' + Object.keys(s) + ') VALUES (?,' + Object.keys(s).map(() => '?') + ')', [id, ...Object.values(s)]]),
+  ['UPDATE activities SET avg_stride_m=?, avg_vert_osc_mm=?, avg_vert_ratio=?, avg_gct_ms=?, avg_gct_balance=? WHERE id=?',
+    [p.dyn.avg_stride_m, p.dyn.avg_vert_osc_mm, p.dyn.avg_vert_ratio, p.dyn.avg_gct_ms, p.dyn.avg_gct_balance, id]],
+]
+
+/** Rebuild detail/{id}.json from the zips already in exports/fit (no network), and refresh laps and dynamics averages in c.db. Use after changing buildDetail or fit.ts. */
+export async function detailStage(c: Ctx) {
+  let n = 0
+  for (const f of existsSync(`${c.outDir}/fit`) ? readdirSync(`${c.outDir}/fit`) : []) {
+    const id = f.replace('.zip', '')
+    const p = parseFit(unzipFit(readFileSync(`${c.outDir}/fit/${f}`)))
+    mkdirSync(`${c.outDir}/detail`, { recursive: true }); writeFileSync(`${c.outDir}/detail/${id}.json`, Buffer.from(js(buildDetail(p.streams)))); n++
+    await c.db.batch(parsedStmts(Number(id), p))
+  }
+  log('detail', { rebuilt: n })
+}
+
 // ---- FIT: runs only. Zip and streams go to local exports/ for now (R2 keys are the same relative paths). ----
 export async function fitStage(c: Ctx, max = Infinity) {
   const todo = await c.db.all<{ id: number }>(
@@ -108,9 +129,9 @@ export async function fitStage(c: Ctx, max = Infinity) {
       await put(`fit/${id}.zip`, zip)
       const p = parseFit(unzipFit(zip))
       await put(`streams/${id}.json.gz`, gzipSync(js(p.streams)))
+      await put(`detail/${id}.json`, Buffer.from(js(buildDetail(p.streams)))) // small, downsampled, read by the Worker
       await c.db.batch([
-        ['DELETE FROM activity_steps WHERE activity_id=?', [id]],
-        ...p.steps.map((s): [string, unknown[]] => ['INSERT INTO activity_steps (activity_id,' + Object.keys(s) + ') VALUES (?,' + Object.keys(s).map(() => '?') + ')', [id, ...Object.values(s)]]),
+        ...parsedStmts(id, p),
         [`UPDATE activities SET fit_status='ok', fit_r2_key=?, rpe=COALESCE(?,rpe), feel=COALESCE(?,feel) WHERE id=?`, [`fit/${id}.zip`, p.rpe, p.feel, id]],
       ])
       ok++

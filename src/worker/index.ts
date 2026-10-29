@@ -7,6 +7,7 @@ export interface DB {
 }
 export type Env = {
   DB: DB
+  FIT?: { get(key: string): Promise<{ json(): Promise<unknown> } | null> } // R2 bucket, optional so the app still runs without it
   ASSETS: { fetch(req: Request): Promise<Response> }
   ACCESS_TEAM_DOMAIN: string; ACCESS_AUD: string
   GITHUB_REPO: string; GITHUB_REF?: string; GITHUB_DISPATCH_TOKEN: string

@@ -11,8 +11,12 @@ export class R2 {
     this.f = o.fetch ?? fetch
   }
   private async send(method: string, key: string, body?: Uint8Array) {
-    const req = await this.c.sign(`${this.base}/${key}`, { method, body: body as BodyInit | undefined })
-    return this.f(req)
+    let r: Response
+    for (let i = 0; ; i++) { // R2 returns the odd transient 5xx
+      r = await this.f(await this.c.sign(`${this.base}/${key}`, { method, body: body as BodyInit | undefined }))
+      if (r.status < 500 || i === 2) return r
+      await new Promise((ok) => setTimeout(ok, 500 * (i + 1)))
+    }
   }
   async exists(key: string) {
     const r = await this.send('HEAD', key)

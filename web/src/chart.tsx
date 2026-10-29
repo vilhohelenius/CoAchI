@@ -70,7 +70,7 @@ function useWidth() {
 }
 
 const ML = 4, MR = 44, MT = 12, MB = 22
-type Frame = { dates: string[]; h?: number; yfmt?: (n: number) => string; unit?: string; summary: string; tip?: (i: number) => string[]; label: string }
+type Frame = { dates: string[]; xf?: (d: string) => string; h?: number; yfmt?: (n: number) => string; unit?: string; summary: string; tip?: (i: number) => string[]; label: string }
 export type Series = { name: string; v: Num[]; c: string; w?: number; dash?: string }
 
 /** Shared frame: size measuring, axes, hover state, tooltip, hidden summary. `draw` gets the scales. */
@@ -87,7 +87,7 @@ function Frame(p: Frame & { bars?: boolean; n: number; y0: number; y1: number; y
   return <div class="cvw" ref={ref}>
     <svg class="cv" viewBox={`0 0 ${w} ${h}`} role="img" aria-label={p.label} onPointerMove={at} onPointerDown={at} onPointerLeave={(e) => e.pointerType === 'mouse' && setHov(null)}>
       {p.yt.map((v) => <><line class="gl" x1={ML} x2={w - MR} y1={Y(v)} y2={Y(v)} /><text x={w - MR + 6} y={Y(v) + 4}>{fy(v)}</text></>)}
-      {p.n > 0 && xt.map((i, k) => <text x={X(i)} y={h - 5} text-anchor={k === 0 && xt.length > 1 ? 'start' : k === xt.length - 1 && xt.length > 1 ? 'end' : 'middle'}>{day(p.dates[i], { day: 'numeric', month: 'short' })}</text>)}
+      {p.n > 0 && xt.map((i, k) => <text x={X(i)} y={h - 5} text-anchor={k === 0 && xt.length > 1 ? 'start' : k === xt.length - 1 && xt.length > 1 ? 'end' : 'middle'}>{(p.xf ?? ((d) => day(d, { day: 'numeric', month: 'short' })))(p.dates[i])}</text>)}
       {p.draw(X, Y, w)}
       {hov != null && <line x1={hx} x2={hx} y1={MT} y2={h - MB} stroke="var(--mute)" stroke-dasharray="3 4" />}
     </svg>

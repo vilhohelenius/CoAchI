@@ -12,6 +12,10 @@ binding = "DB"
 database_name = "coachi"
 database_id = "<D1_DATABASE_ID>"
 
+[[r2_buckets]]
+binding = "FIT" # read-only use: detail/{id}.json for the activity page
+bucket_name = "<R2_BUCKET>"
+
 [vars]
 ACCESS_TEAM_DOMAIN = "<team>.cloudflareaccess.com"
 ACCESS_AUD = "<Access application AUD tag>"

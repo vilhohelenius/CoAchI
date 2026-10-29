@@ -29,11 +29,13 @@ export async function uploadDb(local: LocalStore, remote: Store) {
 
 export async function uploadFiles(dir: string, r2: R2) {
   let sent = 0, skipped = 0
-  for (const sub of ['fit', 'streams']) {
+  for (const sub of ['fit', 'streams', 'detail']) {
     if (!existsSync(`${dir}/${sub}`)) continue
     for (const f of readdirSync(`${dir}/${sub}`)) {
       const key = `${sub}/${f}`
-      if (await r2.exists(key)) { skipped++; continue }
+      if (sub !== 'detail' && await r2.exists(key)) { // detail is derived, always overwrite
+        skipped++; continue
+      }
       await r2.put(key, readFileSync(`${dir}/${key}`))
       sent++
     }
