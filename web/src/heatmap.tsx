@@ -10,13 +10,13 @@ import type { RouteRun, RoutesResp } from './types'
 export const pairs = (r: RouteRun) => Array.from({ length: r[5].length >> 1 }, (_, i): [number, number] => [r[5][2 * i], r[5][2 * i + 1]])
 const W = 800, H = 500
 
-/** Every run as a faint line on one SVG over OpenStreetMap tiles, fitted to the busiest 98% of the points. */
+/** Every run as a faint line on one SVG over OpenStreetMap tiles, fitted to the busiest 90% of the points, far trips are a pan away. */
 export function HeatmapView({ d }: { d: RoutesResp }) {
   const [year, setYear] = useState('all'), [sport, setSport] = useState('run')
   const pool = d.runs.filter((r) => sport === 'all' || (r[6] ?? 'run') === sport) // a file from before rides were added has no sport and means run
   if (!d.runs.length) return <section class="card"><p class="k">No routes yet</p><p class="t0">Routes appear after runs with GPS have synced and the routes file was built.</p></section>
   const years = [...new Set(pool.map((r) => r[1].slice(0, 4)))].sort().reverse(), runs = pool.filter((r) => year === 'all' || r[1].startsWith(year))
-  const all = runs.flatMap(pairs), m = all.length ? mapFit(all, W, H, 20, 0.01) : null
+  const all = runs.flatMap(pairs), m = all.length ? mapFit(all, W, H, 20, 0.05) : null
   return <>
     <p class="sub">Where you run, drawn from every activity with GPS. Brighter lines are the routes you repeat.</p>
     <div class="tools"><div class="seg" role="group" aria-label="Sport">{[['run', 'Runs'], ['bike', 'Rides'], ['all', 'All']].map(([k, l]) => <button type="button" aria-pressed={sport === k} onClick={() => { setSport(k); setYear('all') }}>{l}</button>)}</div>

@@ -153,7 +153,8 @@ describe('page renders', () => {
     expect(html.match(/<path /g)!.length).toBe(routes.runs.length + 2) // plus one thumbnail per route group
     for (const x of ['8 runs', 'All years', '2029', '2030', 'Map tiles come from OpenStreetMap', 'Your routes', 'About 5.1 km', '4<small> runs</small>', 'href="#/activities/204"', 'About 10.2 km', 'within 5%']) expect(html).toContain(x)
     expect(html).not.toContain('<image'); expect(html).not.toContain('http')
-    for (const n of html.match(/[ML]-?\d+\.\d/g)!.map((x) => Number(x.slice(1)))) { expect(n).toBeGreaterThanOrEqual(-1); expect(n).toBeLessThanOrEqual(801) }
+    const ns = html.match(/[ML]-?\d+\.\d/g)!.map((x) => Number(x.slice(1))) // the fit keeps the busiest 90%, far trips may sit outside the box
+    expect(ns.filter((n) => n >= -1 && n <= 801).length).toBeGreaterThanOrEqual(ns.length * 0.9)
     clean(html)
     expect(render(h(HeatmapView, { d: { v: 1, runs: [] } }))).toContain('No routes yet')
   })

@@ -24,6 +24,12 @@ export class R2 {
     if (!r.ok) throw new Error(`r2 ${r.status}`)
     return true
   }
+  async get(key: string) {
+    const r = await this.send('GET', key)
+    if (r.status === 404) return null
+    if (!r.ok) throw new Error(`r2 ${r.status}`)
+    return new Uint8Array(await r.arrayBuffer())
+  }
   async put(key: string, body: Uint8Array) {
     const r = await this.send('PUT', key, body)
     if (!r.ok) throw new Error(`r2 ${r.status}`)

@@ -84,7 +84,7 @@ const c: Ctx = { g, db, today: localToday(), outDir, deadline: Date.now() + budg
 
 try {
   await setState(db, 'run_started_at', String(Date.now()))
-  if (mode === 'steady') { await steadyActivities(c); await steadyWellness(c, Number(process.env.DAYS ?? 3)); await zones(c); await fitStage(c); await assignShoes(db); await recompute(db, c.today, args.includes('--full')); await recordsStage(db, c.today, outDir); if (!remote) await routesStage(db, outDir) }
+  if (mode === 'steady') { await steadyActivities(c); await steadyWellness(c, Number(process.env.DAYS ?? 3)); await zones(c); await fitStage(c); await assignShoes(db); await recompute(db, c.today, args.includes('--full')); await recordsStage(db, c.today, outDir); await routesStage(db, outDir, r2 ?? undefined) }
   else if (mode === 'backfill') { const r = await backfill(c); log('backfill', { status: r }); if (r === 'done') { await fitStage(c); await assignShoes(db); await recompute(db, c.today, true); await recordsStage(db, c.today, outDir) } }
   else if (mode === 'fit') await fitStage(c)
   else throw new Error('mode')

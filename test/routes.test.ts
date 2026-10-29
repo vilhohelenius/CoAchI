@@ -23,6 +23,19 @@ describe('routes stage', () => {
     expect(pts.length).toBe(160); expect(pts.slice(0, 2)).toEqual([12.3457, 56.7891]); expect(pts.at(-2)).toBe(12.3656)
     expect(pts.every((x: number) => Math.round(x * 1e4) / 1e4 === x)).toBe(true)
   })
+
+  it('with R2 it keeps the existing file and adds only the new activities, detail from R2', async () => {
+    setSink(() => {})
+    const db = new LocalStore(':memory:'); db.migrate('migrations')
+    const dir = mkdtempSync(`${tmpdir()}/coachi-`)
+    for (const id of [1, 2]) await db.batch([['INSERT INTO activities (id,start_local,type,distance_m,duration_s,fit_status) VALUES (?,?,?,?,?,?)', [id, `2030-05-0${id} 07:00:00`, 'running', 5000, 1500, 'ok']]])
+    const old = [1, '2030-05-01', 1, 1, [1, 1], [1, 1, 2, 2], 'run']
+    const store: Record<string, string> = { 'routes/all.json': JSON.stringify({ v: 1, runs: [old] }), 'detail/2.json': JSON.stringify({ route: [[3, 3], [3.001, 3.001]] }) }
+    const r2 = { get: async (k: string) => (store[k] ? Buffer.from(store[k]) : null), put: async (k: string, b: Uint8Array) => { store[k] = Buffer.from(b).toString() } }
+    await routesStage(db, dir, r2 as never)
+    const f = JSON.parse(store['routes/all.json'])
+    expect(f.runs.map((r: unknown[]) => r[0])).toEqual([1, 2]); expect(f.runs[0]).toEqual(old)
+  })
 })
 
 describe('route groups', () => {
