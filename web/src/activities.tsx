@@ -4,6 +4,7 @@ import { LineChart, StackedBars } from './chart'
 import { DASH, day, dur, km, num, pace } from './fmt'
 import { DynamicsCard } from './dynamics'
 import { ShoeCard } from './shoes'
+import { TileMap, mapFit } from './tiles'
 import { Err, Page, Pill, Tile } from './today'
 import type { ActDetail, ActList, ActResp, ActRow, Lap } from './types'
 
@@ -83,11 +84,12 @@ export function routePath(pts: [number, number][], w = 300, h = 190, pad = 14) {
 }
 
 function Route({ pts }: { pts: [number, number][] }) {
-  const r = routePath(pts)
+  const m = pts.length > 1 ? mapFit(pts, 300, 190) : null, P = m ? pts.map(m.P) : [], d = 'M' + P.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join('L')
   return <section class="card act"><p class="k">Route</p>
-    {r ? <svg class="map" style="height:auto" viewBox="0 0 300 190" role="img" aria-label="Route of this activity, start and finish marked"><rect width="300" height="190" fill="var(--m-bg)" />
-      <path d={r.d} fill="none" stroke="var(--link)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
-      <circle cx={r.a[0]} cy={r.a[1]} r="5" fill="var(--ok)" /><circle cx={r.b[0]} cy={r.b[1]} r="5" fill="var(--s-over)" /></svg> : null}
+    {m && <TileMap w={300} h={190} tiles={m.tiles} label="Route of this activity, start and finish marked">{(on) => <>
+      {on && <path d={d} fill="none" stroke="#fff" stroke-opacity=".85" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" />}
+      <path d={d} fill="none" stroke="var(--link)" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" />
+      <circle cx={P[0][0]} cy={P[0][1]} r="5" fill="var(--ok)" stroke="#fff" stroke-width="1.5" /><circle cx={P[P.length - 1][0]} cy={P[P.length - 1][1]} r="5" fill="var(--s-over)" stroke="#fff" stroke-width="1.5" /></>}</TileMap>}
     <p class="mu">Green is the start, red is the finish.</p></section>
 }
 

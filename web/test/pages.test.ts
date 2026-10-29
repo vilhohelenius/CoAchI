@@ -1,3 +1,4 @@
+import { mapFit } from '../src/tiles'
 import { describe, expect, it } from 'vitest'
 import { render } from 'preact-render-to-string'
 import { h } from 'preact'
@@ -127,10 +128,19 @@ describe('page renders', () => {
     const r = routePath([[50, 8], [50.01, 8.02], [50.02, 8]])!
     for (const n of r.d.match(/-?\d+\.\d/g)!.map(Number)) { expect(n).toBeGreaterThanOrEqual(0); expect(n).toBeLessThanOrEqual(300) }
   })
+  it('mapFit picks at most 12 tiles, keeps the route in the box and maps to OSM urls', () => {
+    const pts: [number, number][] = [[50, 8], [50.02, 8.03], [50.01, 8.01]]
+    const m = mapFit(pts, 300, 190)
+    expect(m.tiles.length).toBeGreaterThan(0); expect(m.tiles.length).toBeLessThanOrEqual(12)
+    for (const t of m.tiles) expect(t.url).toMatch(/^https:\/\/tile\.openstreetmap\.org\/\d+\/\d+\/\d+\.png$/)
+    for (const p of pts.map(m.P)) { expect(p[0]).toBeGreaterThanOrEqual(0); expect(p[0]).toBeLessThanOrEqual(300); expect(p[1]).toBeLessThanOrEqual(190) }
+    expect(mapFit([[50, 8], [50, 8]], 300, 190).tiles.length).toBeLessThanOrEqual(12)
+    expect(mapFit([[-40, -170], [60, 170]], 300, 190).tiles.length).toBeLessThanOrEqual(12)
+  })
   it('Heatmap draws one faint line per run inside the box, and degrades when empty', () => {
     const html = render(h(HeatmapView, { d: routes as never }))
     expect(html.match(/<path /g)!.length).toBe(routes.runs.length + 2) // plus one thumbnail per route group
-    for (const x of ['8 runs', 'All years', '2029', '2030', 'no background on purpose', 'Your routes', 'About 5.1 km', '4<small> runs</small>', 'href="#/activities/204"', 'About 10.2 km', 'within 5%']) expect(html).toContain(x)
+    for (const x of ['8 runs', 'All years', '2029', '2030', 'Map tiles come from OpenStreetMap', 'Your routes', 'About 5.1 km', '4<small> runs</small>', 'href="#/activities/204"', 'About 10.2 km', 'within 5%']) expect(html).toContain(x)
     expect(html).not.toContain('<image'); expect(html).not.toContain('http')
     for (const n of html.match(/[ML]-?\d+\.\d/g)!.map((x) => Number(x.slice(1)))) { expect(n).toBeGreaterThanOrEqual(-1); expect(n).toBeLessThanOrEqual(801) }
     clean(html)
