@@ -1,4 +1,8 @@
+import { createContext } from 'preact'
 import { useCallback, useEffect, useState } from 'preact/hooks'
+
+/** True when the Worker has an Anthropic key. Gates the Coach page and the model-written Explain texts. */
+export const CoachOn = createContext(false)
 
 export type Load<T> = { s: 'loading' } | { s: 'error'; msg: string } | { s: 'ok'; data: T }
 

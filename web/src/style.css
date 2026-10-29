@@ -155,3 +155,8 @@ a.t{color:inherit;text-decoration:none}.parts{position:relative;z-index:1}
 .rl .rv{font-family:var(--fd);font-weight:800;font-size:26px;line-height:1;text-align:right}.rl .rv small{display:block;font:400 12.5px system-ui;color:var(--mute);margin-top:2px}
 .tbl tr[aria-pressed]{cursor:pointer}.tbl tr[aria-pressed]:hover td{background:var(--soft)}.tbl td.empty{color:var(--mute)}
 .mapw{position:relative}.mapw .attr{position:absolute;right:0;bottom:0;background:rgba(255,255,255,.8);color:#333;font-size:11px;line-height:1;padding:3px 6px;text-decoration:none}
+
+/* coach */
+.msgs{display:grid;gap:10px;max-height:60vh;overflow:auto}.msg{white-space:pre-wrap;padding:10px 14px;border-radius:var(--r2);max-width:46em;overflow-wrap:anywhere}.msg.user{background:var(--tint);justify-self:end}.msg.assistant{background:var(--soft)}
+.cform{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.cform input[type=text]{flex:1;min-width:12em;font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:var(--r2);min-height:44px;padding:0 12px}
+.nrow{grid-template-columns:5.5em 1fr auto}@media(max-width:600px){.nrow{grid-template-columns:1fr}}

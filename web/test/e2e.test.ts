@@ -11,15 +11,25 @@ const fixtureFor = (u: URL) => {
   return p === '/api/mileage' ? `mileage-${by === 'month' || by === 'year' ? by : 'week'}` : p === '/api/mileage/compare' ? 'mileage-compare' : p === '/api/activities' ? 'activities' : p === '/api/steps' ? 'steps' : p === '/api/records' ? 'records' : p === '/api/routes' ? 'routes' : p === '/api/shoes' ? 'shoes' : p === '/api/fitness-estimates' ? 'fitness-estimates'
     : /^\/api\/activities\/\d+$/.test(p) ? (p.endsWith('/97') ? 'activity-strength' : 'activity-run') : /^\/api\/(today|goals|load|recovery|intensity|dynamics)$/.exec(p)?.[1]
 }
-let fail: (u: URL) => boolean, root: HTMLElement
+let fail: (u: URL) => boolean, root: HTMLElement, coachOn = false, chats: string[] = []
 const settle = () => vi.waitFor(() => expect(root.querySelector('[aria-busy]')).toBeNull())
 const go = async (hash: string) => { location.hash = hash; await vi.waitFor(() => expect(root.querySelector('.nav [aria-current]')?.getAttribute('href')).toBe(`#/${hash.replace(/^#?\/?/, '').split('/')[0].replace(/^(load|recovery|intensity|dynamics)$/, 'insights')}`)); await settle() }
 
 beforeEach(async () => {
-  fail = () => false; location.hash = '#/today'
-  vi.stubGlobal('fetch', async (url: string) => {
+  fail = () => false; coachOn = false; chats = []; location.hash = '#/today'
+  vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
     const u = new URL(url, 'http://x'), f = fixtureFor(u)
     if (fail(u)) return new Response('{}', { status: 500 })
+    if (u.pathname === '/api/config') return Response.json({ coach_enabled: coachOn })
+    if (u.pathname === '/api/coach/messages') return Response.json({ messages: [] })
+    if (u.pathname === '/api/coach/notes') return Response.json({ kinds: ['injury', 'other'], notes: [{ id: 1, kind: 'injury', text: 'sore knee', expires_on: null }] })
+    if (u.pathname === '/api/coach/usage') return Response.json({ usd: 0.1234, cap_usd: 5, calls: 3 })
+    if (u.pathname === '/api/explain') return Response.json({ text: 'Plain words from the model.', source: 'llm' })
+    if (u.pathname === '/api/coach/chat') {
+      chats.push(JSON.parse((init as RequestInit).body as string).message)
+      const enc = new TextEncoder(), ev = (e: string, d: unknown) => enc.encode(`event: ${e}\ndata: ${JSON.stringify(d)}\n\n`)
+      return new Response(new ReadableStream({ start(c) { c.enqueue(ev('tool', { name: 'get_overview' })); c.enqueue(ev('text', { text: 'Easy ' })); c.enqueue(ev('text', { text: 'run.' })); c.enqueue(ev('done', {})); c.close() } }), { headers: { 'content-type': 'text/event-stream' } })
+    }
     if (u.pathname === '/api/status') return Response.json({ sync: { last_ok: null, last_error: null }, counts: { activities: 0 }, garmin_key: { expires_on: null, days_left: null, banner: false }, pat: { expires_on: null, days_left: null, banner: false } })
     return f ? new Response(fx(f), { headers: { 'content-type': 'application/json' } }) : new Response('{}', { status: 404 })
   })
@@ -154,5 +164,31 @@ describe('frontend end to end', () => {
     await vi.waitFor(() => expect(root.querySelector('.err')).toBeNull())
     await settle()
     expect(root.textContent).toContain('Fitness and fatigue')
+  })
+  it('the Coach tab is hidden without a key and its route falls back to Today', async () => {
+    await settle()
+    expect(root.querySelector('.side a[href="#/coach"]')).toBeNull(); expect(root.querySelector('.tabs a[href="#/coach"]')).toBeNull()
+    location.hash = '#/coach'
+    await new Promise((r) => setTimeout(r, 50))
+    expect(root.querySelector('h1')?.textContent).not.toBe('Coach'); expect(root.querySelector('.chat')).toBeNull()
+  })
+  it('with a key the Coach tab shows, chat streams an answer, notes and usage render, Explain uses the model text', async () => {
+    coachOn = true
+    render(null, root); render(h(App, {}), root)
+    await vi.waitFor(() => expect(root.querySelector('.side a[href="#/coach"]')).not.toBeNull())
+    await go('#/coach')
+    await vi.waitFor(() => expect(root.querySelector('h1')?.textContent).toBe('Coach'))
+    await vi.waitFor(() => expect(root.textContent).toContain('sore knee'))
+    expect(root.textContent).toContain('USD 0.12 of 5.00 across 3 calls')
+    const input = root.querySelector('.cform input') as HTMLInputElement
+    input.value = 'Should I run?'; input.dispatchEvent(new Event('input', { bubbles: true }))
+    await new Promise((r) => setTimeout(r, 20))
+    ;(root.querySelector('.chat form') as HTMLFormElement).dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await vi.waitFor(() => expect(root.querySelector('.msg.assistant')?.textContent).toBe('Easy run.'))
+    expect(chats).toEqual(['Should I run?']); expect(root.querySelector('.msg.user')?.textContent).toBe('Should I run?')
+    await go('#/insights/status')
+    await vi.waitFor(() => expect(root.querySelector('.xp')).toBeTruthy())
+    ;(root.querySelector('.xp') as HTMLButtonElement).click()
+    await vi.waitFor(() => expect(root.querySelector('.ex')?.textContent).toContain('Plain words from the model.'))
   })
 })
