@@ -150,8 +150,57 @@ export async function explain(o: { db: DB; env: Env; fetch: Fetch; now: number; 
   } catch { return fallback }
 }
 
-// ---- COACH_DAILY=1: one proactive summary per day, written by the cron `scheduled` handler as a normal assistant message ----
-const DAILY_SYSTEM = `You write the coach's short morning message for one runner from the briefing JSON. At most 90 words, plain text, no headings. Use only numbers in the briefing. Cover how recovery looks, what the last days and the week look like, and one suggestion for today. Hedge when data is old or confidence is low. No medical advice.`
+// ---- Today's suggestion + morning note: ONE model call per day returns both, so the note and the card cannot contradict ----
+export const KINDS = ['easy', 'long', 'workout', 'rest', 'recovery'] as const
+export type Suggestion = { date: string; kind: (typeof KINDS)[number]; km: number | null; title: string; text: string; pace: string | null; hr_cap: number | null; why: string }
+export type TodayPlan = { date: string; brief: string | null; suggestion: Suggestion; source: 'llm' | 'fallback' }
+const TODAY_SYSTEM = `${SYSTEM.split('For questions like')[0]}Tools are not available in this call: use only the briefing and hr_zones.
+Reply with JSON only, no Markdown fence, exactly this shape:
+{"kind":"easy|long|workout|rest|recovery","km":number or null,"title":"max 8 words","text":"2 to 3 sentences: pace range, heart rate cap, duration, why","pace":"m:ss to m:ss per km or null","hr_cap":bpm integer or null,"why":"1 to 2 sentences on why this and not harder or rest","note":"the morning note, at most 90 words, plain text, recovery, last days and week, and this same suggestion"}
+Pick a session from the briefing. Active injury or illness notes and low readiness mean rest or recovery. Give km, pace and hr_cap as null for rest. Never exceed what recovery signals allow.`
+const str = (v: unknown, max: number) => (typeof v === 'string' && v.trim() && v.trim().length <= max ? v.trim() : null)
+
+/** Strict check of the model's JSON. Returns null for anything off, so the caller falls back to the deterministic suggestion. */
+export function parseSuggestion(raw: string, date: string): { suggestion: Suggestion; brief: string } | null {
+  let o: any
+  try { o = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)) } catch { return null }
+  const kind = KINDS.find((k) => k === o?.kind), title = str(o?.title, 80), text = str(o?.text, 500), why = str(o?.why, 400), brief = str(o?.note, 700)
+  if (!kind || !title || !text || !why || !brief) return null
+  const rest = kind === 'rest', km = rest || typeof o.km !== 'number' || !Number.isFinite(o.km) ? null : Math.round(Math.min(60, Math.max(0, o.km)) * 10) / 10
+  const hr = rest || typeof o.hr_cap !== 'number' || !Number.isFinite(o.hr_cap) ? null : Math.round(Math.min(230, Math.max(80, o.hr_cap)))
+  return { brief, suggestion: { date, kind, km: km || null, title, text, pace: rest ? null : str(o.pace, 30), hr_cap: hr, why } }
+}
+
+/** No model: pick from readiness, notes and the week. Numbers come straight from the briefing. */
+export function fallbackSuggestion(b: Awaited<ReturnType<typeof briefing>>): Suggestion {
+  const sick = b.notes.some((n) => n.kind === 'injury' || n.kind === 'illness'), label = b.readiness?.label, over = b.status?.label === 'Overreaching'
+  const base = { date: b.date, pace: null, hr_cap: null }
+  if (sick) return { ...base, kind: 'rest', km: null, title: 'Rest and check your notes', text: 'You have an active injury or illness note, so today is for rest. See a professional if it gets worse.', why: 'A harder session risks making an active problem worse.' }
+  if (label === 'poor' || label === 'low' || over) return { ...base, kind: 'recovery', km: 4, title: 'Short easy recovery jog', text: 'Keep it short and fully easy, or take a walk. Your recovery signals say to hold back today.', why: `Readiness is ${label ?? 'unclear'}${over ? ' and your load is high' : ''}, so a hard session would cost more than it gives.` }
+  const w = b.this_week, km = w && w.sessions ? Math.min(12, Math.max(4, Math.round(w.km / w.sessions))) : 6
+  return { ...base, kind: 'easy', km, title: 'Easy aerobic run', text: `An easy run of about ${km} km at a pace where you can talk. Stop early if the legs feel flat.`, why: 'Nothing in the briefing calls for rest, and an easy run adds fitness without much fatigue.' }
+}
+
+/** Today's plan: stored copy, else one model call (cap-guarded), else the deterministic fallback. Only model output is stored, so a capped or failed call retries on the next request. */
+export async function todayPlan(o: { db: DB; env: Env; fetch: Fetch; now: number; generate?: boolean }): Promise<TodayPlan> {
+  const { db, env, now } = o, date = iso(now)
+  const [s] = await q<any>(db, "SELECT value FROM sync_state WHERE key='coach_today'")
+  try { const p = JSON.parse(s?.value ?? 'null'); if (p?.date === date && p.source === 'llm') return p } catch { /* regenerate */ }
+  const b = await briefing(db, now), fb: TodayPlan = { date, brief: null, suggestion: fallbackSuggestion(b), source: 'fallback' }
+  if (o.generate === false || !env.ANTHROPIC_API_KEY || (await capReached(db, env, now))) return fb
+  try {
+    const [z] = await q<any>(db, "SELECT max_hr, rest_hr, lthr, z1, z2, z3, z4, z5 FROM hr_zones WHERE sport='RUNNING' AND effective_date <= ? ORDER BY effective_date DESC LIMIT 1", date)
+    const res = await claude(env, o.fetch, { max_tokens: 700, system: TODAY_SYSTEM, messages: [{ role: 'user', content: JSON.stringify({ ...b, hr_zones: z ?? null }) }] })
+    await addUsage(db, now, res.usage)
+    const r = parseSuggestion(res.content.filter((x) => x.type === 'text').map((x) => x.text).join(''), date)
+    if (!r) return fb
+    const plan: TodayPlan = { date, brief: r.brief, suggestion: r.suggestion, source: 'llm' }
+    await db.prepare("INSERT INTO sync_state (key, value, updated_at) VALUES ('coach_today', ?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at").bind(JSON.stringify(plan), now).run()
+    return plan
+  } catch { return fb }
+}
+
+// ---- COACH_DAILY=1: the cron also posts the morning note as a normal assistant message (same text the card shows) ----
 export async function dailySummary(o: { db: DB; env: Env; fetch: Fetch; now: number }) {
   const { db, env, now } = o, date = iso(now)
   if (!env.ANTHROPIC_API_KEY || env.COACH_DAILY !== '1') return 'off'
@@ -159,15 +208,11 @@ export async function dailySummary(o: { db: DB; env: Env; fetch: Fetch; now: num
   const [s] = await q<any>(db, "SELECT value FROM sync_state WHERE key='coach_daily'")
   if (s?.value === date) return 'exists'
   if (await capReached(db, env, now)) return 'capped'
-  try {
-    const res = await claude(env, o.fetch, { max_tokens: 300, system: DAILY_SYSTEM, messages: [{ role: 'user', content: JSON.stringify(await briefing(db, now)) }] })
-    await addUsage(db, now, res.usage)
-    const text = res.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim()
-    if (!text) return 'empty'
-    await db.prepare('INSERT INTO coach_messages (created_at, role, content) VALUES (?, ?, ?)').bind(now, 'assistant', text).run()
-    await db.prepare("INSERT INTO sync_state (key, value, updated_at) VALUES ('coach_daily', ?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at").bind(date, now).run()
-    return 'written'
-  } catch { return 'error' }
+  const p = await todayPlan(o)
+  if (p.source !== 'llm' || !p.brief) return 'error'
+  await db.prepare('INSERT INTO coach_messages (created_at, role, content) VALUES (?, ?, ?)').bind(now, 'assistant', p.brief).run()
+  await db.prepare("INSERT INTO sync_state (key, value, updated_at) VALUES ('coach_daily', ?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at").bind(date, now).run()
+  return 'written'
 }
 
 export function coachRoutes(app: Hono<{ Bindings: Env }>, deps: Deps) {
@@ -184,6 +229,7 @@ export function coachRoutes(app: Hono<{ Bindings: Env }>, deps: Deps) {
     })
   })
   app.get('/api/coach/briefing', async (c) => c.json({ as_of: new Date(deps.now()).toISOString(), ...(await briefing(c.env.DB, deps.now())) }))
+  app.get('/api/coach/today', async (c) => c.json(await todayPlan({ db: c.env.DB, env: c.env, fetch: deps.fetch, now: deps.now() })))
   app.get('/api/coach/usage', async (c) => c.json(await usage(c.env.DB, c.env, deps.now())))
   app.get('/api/coach/messages', async (c) => c.json({ messages: await q(c.env.DB, `SELECT role, content FROM (SELECT id, role, content FROM coach_messages ORDER BY id DESC LIMIT 50) ORDER BY id`) }))
 

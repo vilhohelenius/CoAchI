@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { render } from 'preact-render-to-string'
 import { h } from 'preact'
-import { TodayView } from '../src/today'
+import { CoachPlanView, TodayView } from '../src/today'
+import coachToday from '../fixtures/coach-today.json'
 import { day, dur, km, num, pace, sgn, statusReason } from '../src/fmt'
 import today from '../fixtures/today.json'
 import load from '../fixtures/load.json'
@@ -44,5 +45,17 @@ describe('Today render', () => {
   })
   it('shows the empty state on an empty database', () => {
     expect(view({ as_of: 'x', data_date: null })).toContain('No data has synced')
+  })
+})
+
+describe('Coach card', () => {
+  it('shows the suggestion, brief and prefilled quick prompts from the fixture', () => {
+    const html = render(h(CoachPlanView, { p: coachToday as never }))
+    for (const s of ['Coach suggests', 'Easy', '· 9 km', 'Easy aerobic run', 'keep your heart rate under 143', 'Heart rate under', 'Recovery looks good', 'Open in Coach', 'Why this run', 'aria-expanded="false"', 'Open chat', 'href="#/coach/Make%20today%20easier"'])
+      expect(html).toContain(s)
+    expect(html).not.toContain('Yesterday was hard') // the why text is behind the button
+    expect(html.replace(/<[^>]*>/g, ' ')).not.toMatch(/null|NaN|undefined/)
+    const rest = render(h(CoachPlanView, { p: { ...coachToday, brief: null, suggestion: { ...coachToday.suggestion, kind: 'rest', km: null, pace: null, hr_cap: null } } as never }))
+    expect(rest).toContain('Rest'); expect(rest).not.toContain('Morning note'); expect(rest).not.toContain('Heart rate under')
   })
 })

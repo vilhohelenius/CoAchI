@@ -72,3 +72,5 @@ export type RoutesResp = { v: number; runs: RouteRun[] }
 export type Shoe = { id: number; name: string; brand: string | null; default_for: 'run' | null; start_km: number; retire_km: number; retired_on: string | null; notes: string | null; since: string
   km: number; runs: number; last_run: string | null; alert: 'soon' | 'over' | null }
 export type ShoesResp = { as_of: string; shoes: Shoe[] }
+
+export type CoachPlan = { date: string; brief: string | null; source: 'llm' | 'fallback'; suggestion: { date: string; kind: 'easy' | 'long' | 'workout' | 'rest' | 'recovery'; km: number | null; title: string; text: string; pace: string | null; hr_cap: number | null; why: string } }

@@ -1,6 +1,8 @@
 import { useState } from 'preact/hooks'
 import { useApi } from './api'
+import { day } from './fmt'
 import { Page } from './today'
+import type { CoachPlan } from './types'
 
 type Msg = { role: 'user' | 'assistant'; content: string }
 type Note = { id: number; kind: string; text: string; expires_on: string | null }
@@ -54,8 +56,8 @@ export function md(src: string) {
 
 const CHIPS = ['How recovered am I today?', 'How was my week?', 'Should I run tomorrow?']
 
-function Chat({ first }: { first: Msg[] }) {
-  const [msgs, setMsgs] = useState(first), [text, setText] = useState(''), [busy, setBusy] = useState(''), [sent, setSent] = useState(false)
+function Chat({ first, prompt }: { first: Msg[]; prompt?: string }) {
+  const [msgs, setMsgs] = useState(first), [text, setText] = useState(prompt ?? ''), [busy, setBusy] = useState(''), [sent, setSent] = useState(false)
   const last = (f: (c: string) => string) => setMsgs((m) => m.map((x, i) => (i === m.length - 1 ? { ...x, content: f(x.content) } : x)))
   const submit = async (e: Event, preset?: string) => {
     e.preventDefault()
@@ -98,10 +100,17 @@ function Notes() {
     </form><p class="cap2" role="status">{msg}</p></section>
 }
 
-export function CoachPage() {
+/** The morning note, the same text as on Today. Hidden until the model has written one. */
+function Brief() {
+  const [st] = useApi<CoachPlan>('/api/coach/today')
+  return st.s === 'ok' && st.data.brief ? <section class="card"><p class="k">Daily briefing<span>{day(st.data.date, { weekday: 'short', day: 'numeric', month: 'short' })}</span></p><p class="t0">{st.data.brief}</p></section> : null
+}
+
+export function CoachPage({ prompt }: { prompt?: string }) {
   const [st, retry] = useApi<{ messages: Msg[] }>('/api/coach/messages'), [u] = useApi<{ usd: number; cap_usd: number; calls: number }>('/api/coach/usage')
   return <Page title="Coach" st={st} retry={retry}>{(d) => <div class="cgrid">
-    <Chat first={d.messages} />
+    <Brief />
+    <Chat first={d.messages} prompt={prompt} />
     <Notes />
     {u.s === 'ok' && <p class="cap2">This month: USD {u.data.usd.toFixed(2)} of {u.data.cap_usd.toFixed(2)} across {u.data.calls} calls.</p>}
   </div>}</Page>

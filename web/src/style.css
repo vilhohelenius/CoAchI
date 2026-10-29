@@ -182,6 +182,13 @@ h2.sh{display:flex;justify-content:space-between;align-items:baseline}h2.sh a{fo
 .act .st{display:flex;flex-wrap:nowrap;justify-content:space-between;gap:8px}.act .st b{font-size:26px;white-space:nowrap}.act .st span{white-space:nowrap}
 @media(min-width:900px){.act .st{justify-content:flex-start;gap:22px}.act .st b{font-size:34px}}
 .coachc .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.coachs{display:grid;gap:16px}.coachs h2{margin:4px 0 10px}.coachs .cl p{margin:0 0 12px;color:var(--mute);font-size:15px}.coachs .cr{display:flex;flex-direction:column;gap:10px}.coachs .acts{margin-top:0}
+.coachs button.btn{border:0;font:inherit;font-weight:600;cursor:pointer}.coachs .btn:focus-visible,.askl:focus-visible,.lk a:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+.cfacts{display:flex;flex-wrap:wrap;gap:4px 18px}.cfacts b{color:var(--ink)}.coachs .cwhy{color:var(--ink);background:var(--soft);border-radius:var(--r2);padding:10px 12px}
+.cnote{border-top:1px solid var(--line);padding-top:12px}.cnote>span{font-size:12.5px;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}.coachs .cnote p{color:var(--ink);margin:4px 0 0}
+.askl{display:flex;justify-content:space-between;gap:12px;padding:14px;border-radius:var(--r2);background:var(--soft);color:var(--mute);text-decoration:none}.askl span:last-child{color:var(--link);font-weight:700;white-space:nowrap}.askl:hover{box-shadow:0 0 0 2px var(--line)}
+.coachs .k{justify-content:flex-start}.lk{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 0}.lk a{background:var(--soft);border-radius:999px;padding:8px 14px;color:var(--ink);font-size:14px;text-decoration:none;min-height:36px;display:inline-flex;align-items:center}.lk a:hover{text-decoration:underline}.coachs .lk{margin:0}
+@media(min-width:900px){.coachs{grid-template-columns:1.4fr 1fr;gap:24px;align-items:center}}
 .btn.g{background:var(--soft);color:var(--ink)}
 .kv.wk{grid-template-columns:repeat(4,auto);justify-content:space-between;gap:8px}.kv.wk .num{font-size:28px;white-space:nowrap}.kv.wk .lab{white-space:nowrap}
 .days7 a{background:var(--soft);border-radius:var(--r2);padding:8px 2px;min-width:0;color:inherit;text-decoration:none}.days7 a:hover{background:var(--tint)}.days7 a.on{outline:2px solid var(--link);outline-offset:-2px}

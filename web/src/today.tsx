@@ -1,10 +1,10 @@
-import { useContext } from 'preact/hooks'
+import { useContext, useState } from 'preact/hooks'
 import { routePath } from './activities'
 import { CoachOn, useApi } from './api'
 import { pairs } from './heatmap'
 import { Carousel } from './carousel'
 import { DASH, STATUS_KEY, clock, day, dur, km, num, pace, paceWord, pct, readinessWord, sgn, sleepLabel, statusReason, stressLabel } from './fmt'
-import type { GoalProgress, LoadResp, RouteRun, RoutesResp, Today } from './types'
+import type { CoachPlan, GoalProgress, LoadResp, RouteRun, RoutesResp, Today } from './types'
 
 /** Loading skeleton, calm error card with retry, or the view. Every data page goes through this. */
 export function Page<T>({ title, st, retry, children }: { title: string; st: ReturnType<typeof useApi<T>>[0]; retry: () => void; children: (d: T) => preact.ComponentChildren }) {
@@ -110,10 +110,42 @@ export function ReadinessCard({ d }: { d: Today }) {
   </section>
 }
 
+const KIND_WORD: Record<CoachPlan['suggestion']['kind'], string> = { easy: 'Easy', long: 'Long run', workout: 'Workout', rest: 'Rest', recovery: 'Recovery' }
+const QUICK = ['Make today easier', 'Plan the rest of my week']
+const ask = (q: string) => `#/coach/${encodeURIComponent(q)}`
+
+function CoachStatic() {
+  return <section class="card coachc"><p class="k">Coach<Pill tone="ok">On</Pill></p><h2>Ask what to do today</h2><p>The coach reads your sleep, HRV, load and notes, then suggests a session.</p>
+    <div class="acts"><a class="btn" href="#/coach">Open Coach</a><a class="btn g" href={ask('Should I run tomorrow?')}>Should I run tomorrow?</a></div></section>
+}
+
+export function CoachPlanView({ p }: { p: CoachPlan }) {
+  const [why, setWhy] = useState(false), s = p.suggestion
+  return <section class="card coachc coachs">
+    <div class="cl">
+      <p class="k">Coach suggests<Pill>{KIND_WORD[s.kind]}{s.km != null && ` · ${s.km} km`}</Pill></p>
+      <h2>{s.title}</h2>
+      <p>{s.text}</p>
+      {(s.pace || s.hr_cap != null) && <p class="cfacts">{s.pace && <span>Pace <b>{s.pace}</b></span>}{s.hr_cap != null && <span>Heart rate under <b>{s.hr_cap}</b></span>}</p>}
+      {why && <p id="coach-why" class="cwhy">{s.why}</p>}
+      {p.brief && <div class="cnote"><span>Morning note</span><p>{p.brief}</p></div>}
+    </div>
+    <div class="cr">
+      <div class="acts"><a class="btn" href="#/coach">Open in Coach</a><button type="button" class="btn g" aria-expanded={why} aria-controls="coach-why" onClick={() => setWhy(!why)}>Why this run</button></div>
+      <a class="askl" href="#/coach"><span>Ask about today's run or your week</span><span>Open chat</span></a>
+      <div class="lk">{QUICK.map((q) => <a href={ask(q)}>{q}</a>)}</div>
+    </div>
+  </section>
+}
+
 function CoachCard() {
   if (!useContext(CoachOn)) return <section class="card coachc"><p class="k">Coach<Pill>Later</Pill></p><h2>Coach arrives in a later phase</h2><p>Suggestions for your day will show up here once the coach is connected.</p></section>
-  return <section class="card coachc"><p class="k">Coach<Pill tone="ok">On</Pill></p><h2>Ask what to do today</h2><p>The coach reads your sleep, HRV, load and notes, then suggests a session.</p>
-    <div class="acts"><a class="btn" href="#/coach">Open Coach</a><a class="btn g" href="#/coach">Should I run tomorrow?</a></div></section>
+  return <CoachLive />
+}
+function CoachLive() {
+  const [st] = useApi<CoachPlan>('/api/coach/today')
+  if (st.s === 'loading') return <section class="card sk" aria-busy="true" aria-label="Loading the coach suggestion" style="min-height:190px" />
+  return st.s === 'ok' && st.data.suggestion ? <CoachPlanView p={st.data} /> : <CoachStatic />
 }
 
 export function Gauge({ min, max, lo, hi, v }: { min: number; max: number; lo?: number | null; hi?: number | null; v: number }) {

@@ -1,0 +1,15 @@
+{
+ "date": "2030-06-01",
+ "brief": "Recovery looks good and last week was steady. Keep today easy so the legs absorb it.",
+ "source": "llm",
+ "suggestion": {
+  "date": "2030-06-01",
+  "kind": "easy",
+  "km": 9,
+  "title": "Easy aerobic run",
+  "text": "Run 5:15 to 5:35 per km and keep your heart rate under 143. It should take about 50 minutes.",
+  "pace": "5:15 to 5:35",
+  "hr_cap": 143,
+  "why": "Yesterday was hard, so an easy run adds fitness without more fatigue."
+ }
+}

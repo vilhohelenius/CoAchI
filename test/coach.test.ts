@@ -5,7 +5,7 @@ import { resetJwksCache } from '../src/worker/access.js'
 import { LocalStore } from '../sync/store.js'
 import { recompute } from '../sync/recompute.js'
 import { TOOLS, callTool } from '../src/tools.js'
-import { MAX_ROUNDS, REGEN_LIMIT, briefing, chat, dailySummary, explain } from '../src/coach.js'
+import { MAX_ROUNDS, REGEN_LIMIT, briefing, chat, dailySummary, explain, fallbackSuggestion, parseSuggestion, todayPlan } from '../src/coach.js'
 
 const TEAM = 'team.example.cloudflareaccess.com', AUD = 'aud-123', NOW = Date.parse('2030-05-31T12:00:00Z')
 const kp = await generateKeyPair(), jwk = { ...(await exportJWK(kp.publicKey)), kid: 'k1' }
@@ -35,6 +35,7 @@ async function mk(extra: Partial<Env> = { ANTHROPIC_API_KEY: 'test-key' }) {
 }
 const api = async (m: Awaited<ReturnType<typeof mk>>, path: string, method = 'GET', body?: unknown) =>
   m.app.request(path, { method, headers: { 'Cf-Access-Jwt-Assertion': await tok(), ...(body ? { 'content-type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined }, m.env)
+const PLAN = (note = 'Easy day.', o: object = {}) => JSON.stringify({ kind: 'easy', km: 9, title: 'Easy aerobic run', text: 'Run easy. Keep HR under 143.', pace: '5:15 to 5:35', hr_cap: 143, why: 'Legs are tired.', note, ...o })
 const run = async (m: Awaited<ReturnType<typeof mk>>, message: string) => {
   const events: [string, any][] = []
   await chat({ db: m.db, env: m.env, fetch: fakeFetch, now: NOW, message, emit: (e, data) => { events.push([e, data]) } })
@@ -210,12 +211,12 @@ describe('routes', () => {
   it('daily summary: one assistant message per day, off without the flag or key, respects the cap', async () => {
     const msgs = async (m: Awaited<ReturnType<typeof mk>>) => ((await (await api(m, '/api/coach/messages')).json()) as any).messages
     const m = await mk({ ANTHROPIC_API_KEY: 'k', COACH_DAILY: '1' }), go = (mm = m, now = NOW) => dailySummary({ db: mm.db, env: mm.env, fetch: fakeFetch, now })
-    replies = [say('Good morning. Recovery looks fine.')]
+    replies = [say(PLAN('Good morning. Recovery looks fine.'))]
     expect(await go(m, NOW - 8 * 36e5)).toBe('early'); expect(sent.length).toBe(0)
     expect(await go()).toBe('written'); expect(await go()).toBe('exists'); expect(sent.length).toBe(1)
     expect(sent[0].body.messages[0].content).toContain('"readiness"')
     expect(await msgs(m)).toEqual([{ role: 'assistant', content: 'Good morning. Recovery looks fine.' }])
-    replies = [say('Next day.')]
+    replies = [say(PLAN('Next day.'))]
     expect(await go(m, NOW + 864e5)).toBe('written')
     const off = await mk({ ANTHROPIC_API_KEY: 'k' }); expect(await go(off)).toBe('off')
     const nokey = await mk({ COACH_DAILY: '1' }); expect(await go(nokey)).toBe('off')
@@ -223,5 +224,41 @@ describe('routes', () => {
     await capped.l.batch([["INSERT INTO coach_usage (month, usd) VALUES ('2030-05', 99)"]])
     expect(await go(capped)).toBe('capped'); expect(await msgs(capped)).toEqual([])
     replies = []; expect(await go(await mk({ ANTHROPIC_API_KEY: 'k', COACH_DAILY: '1' }))).toBe('error') // API failure writes nothing
+  })
+})
+
+describe("today's suggestion", () => {
+  it('parseSuggestion validates strictly and clamps', () => {
+    const ok = parseSuggestion('```json\n' + PLAN('n', { km: 99, hr_cap: 400 }) + '\n```', '2030-05-31')!
+    expect(ok.suggestion).toMatchObject({ date: '2030-05-31', kind: 'easy', km: 60, hr_cap: 230, pace: '5:15 to 5:35' }); expect(ok.brief).toBe('n')
+    expect(parseSuggestion(PLAN('n', { kind: 'rest', km: 5, hr_cap: 120, pace: '5:00' }), 'x')!.suggestion).toMatchObject({ kind: 'rest', km: null, hr_cap: null, pace: null })
+    for (const bad of ['', 'nope', PLAN('n', { kind: 'sprint' }), PLAN('n', { title: '' }), PLAN('n', { text: 'x'.repeat(501) }), PLAN('n', { note: undefined }), PLAN('n', { why: 7 })]) expect(parseSuggestion(bad, 'x'), bad).toBeNull()
+    expect(parseSuggestion(PLAN('n', { km: 'far', hr_cap: null }), 'x')!.suggestion).toMatchObject({ km: null, hr_cap: null })
+  })
+  it('endpoint: model once per day, stored, brief and card from the same call', async () => {
+    const m = await mk(), get = async () => (await (await api(m, '/api/coach/today')).json()) as any
+    replies = [say(PLAN('Note A'))]
+    const a = await get()
+    expect(a).toMatchObject({ date: '2030-05-31', brief: 'Note A', source: 'llm', suggestion: { kind: 'easy', km: 9, hr_cap: 143, title: 'Easy aerobic run' } })
+    expect(await get()).toEqual(a); expect(sent.length).toBe(1)
+    expect(sent[0].body.messages[0].content).toContain('"hr_zones"'); expect(JSON.stringify(sent[0].body.system)).toContain('JSON only')
+    replies = [say(PLAN('Note B'))]
+    expect(await todayPlan({ db: m.db, env: m.env, fetch: fakeFetch, now: NOW + 864e5 })).toMatchObject({ source: 'llm', brief: 'Note B', date: '2030-06-01' }) // next day regenerates
+  })
+  it('falls back without a key, over the cap, on a bad reply or an error, and retries later', async () => {
+    const nokey = await mk({}); expect((await (await api(nokey, '/api/coach/today')).json() as any).code).toBe('COACH_DISABLED')
+    const m = await mk(), plan = () => todayPlan({ db: m.db, env: m.env, fetch: fakeFetch, now: NOW })
+    replies = [say('not json')]
+    expect(await plan()).toMatchObject({ source: 'fallback', brief: null, suggestion: { date: '2030-05-31' } })
+    expect(sent.length).toBe(1); replies = []
+    expect((await plan()).source).toBe('fallback') // 500 from the stub
+    replies = [say(PLAN('ok'))]; expect((await plan()).source).toBe('llm')
+    const capped = await mk(); await capped.l.batch([["INSERT INTO coach_usage (month, usd) VALUES ('2030-05', 99)"]]); sent = []
+    expect((await todayPlan({ db: capped.db, env: capped.env, fetch: fakeFetch, now: NOW })).source).toBe('fallback'); expect(sent.length).toBe(0)
+  })
+  it('fallback suggestion respects notes and readiness', async () => {
+    const m = await mk(), b: any = await briefing(m.db, NOW)
+    expect(fallbackSuggestion({ ...b, notes: [{ id: 1, kind: 'injury', text: 'knee', expires_on: null }] }).kind).toBe('rest')
+    expect(fallbackSuggestion({ ...b, notes: [], readiness: { ...b.readiness, label: 'poor' } })).toMatchObject({ kind: 'recovery', km: 4 })
   })
 })

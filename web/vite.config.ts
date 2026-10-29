@@ -8,8 +8,9 @@ const fixtures = () => ({
   configureServer(s: { middlewares: { use(f: (req: { url?: string }, res: any, next: () => void) => void): void } }) {
     s.middlewares.use((req, res, next) => {
       const u = new URL(req.url ?? '', 'http://x'), by = u.searchParams.get('by')
-      const f = u.pathname === '/api/mileage' ? `mileage-${by === 'month' || by === 'year' ? by : 'week'}` : u.pathname === '/api/mileage/compare' ? 'mileage-compare' : u.pathname === '/api/activities' ? 'activities' : u.pathname === '/api/steps' ? 'steps' : u.pathname === '/api/records' ? 'records' : u.pathname === '/api/fitness-estimates' ? 'fitness-estimates'
+      const f = u.pathname === '/api/mileage' ? `mileage-${by === 'month' || by === 'year' ? by : 'week'}` : u.pathname === '/api/mileage/compare' ? 'mileage-compare' : u.pathname === '/api/activities' ? 'activities' : u.pathname === '/api/steps' ? 'steps' : u.pathname === '/api/records' ? 'records' : u.pathname === '/api/fitness-estimates' ? 'fitness-estimates' : u.pathname === '/api/coach/today' ? 'coach-today'
         : /^\/api\/activities\/\d+$/.test(u.pathname) ? (u.pathname.endsWith('/97') ? 'activity-strength' : 'activity-run') : /^\/api\/(today|goals|load|recovery|intensity|dynamics|routes|shoes|correlations)$/.exec(u.pathname)?.[1]
+      if (u.pathname === '/api/config' && process.env.DEV_COACH) { res.setHeader('content-type', 'application/json'); return res.end('{"coach_enabled":true}') }
       if (!f) return next()
       res.setHeader('content-type', 'application/json')
       res.end(readFileSync(new URL(`./fixtures/${f}.json`, import.meta.url)))
